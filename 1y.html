@@ -25,10 +25,20 @@
         body { font-family: "Inter", sans-serif; background-color: #0e0e10; color: #efeff1; }
         .emote-card-wrapper, .table-popover-wrapper, .metric-info-wrapper, .alias-popover-wrapper { position: relative; }
         #tableViewContainer { overflow: visible !important; }
-        #tableViewContainer table { overflow: visible !important; border-collapse: separate; }
-        #tableViewContainer td, #tableViewContainer tr { position: relative; overflow: visible !important; }
-        .emote-img-skeleton { background: linear-gradient(90deg, #18181b 25%, #26262c 50%, #18181b 75%); background-size: 200% 100%; animation: skeleton-loading 1.5s infinite; }
-        @keyframes skeleton-loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        #tableViewContainer table { table-layout: fixed; width: 100%; overflow: visible !important; border-collapse: separate; border-spacing: 0; }
+        #tableViewContainer tr { height: 64px; min-height: 64px; max-height: 64px; position: relative; z-index: 1; overflow: visible !important; }
+        #tableViewContainer tr:hover { z-index: 50; }
+        #tableViewContainer td { height: 64px; min-height: 64px; max-height: 64px; vertical-align: middle; position: relative; overflow: visible !important; }
+        #tableViewContainer td > .table-popover-wrapper:not([data-top-users-cell]) { display: inline-block; width: 56px; height: 40px; contain: layout style; }
+        #tableViewContainer .table-popover-wrapper:hover { z-index: 100; }
+        #tableViewContainer .emote-img-box { width: 56px; height: 40px; min-width: 56px; min-height: 40px; max-width: 56px; max-height: 40px; flex: none; transform: translateZ(0); backface-visibility: hidden; }
+        #tableViewContainer .emote-img-box > img { max-width: 32px; max-height: 32px; width: auto; height: auto; flex: none; transform: translateZ(0); backface-visibility: hidden; }
+        .emote-img-box { position: relative; background-color: #18181b; box-sizing: border-box; }
+        @keyframes skeletonPurpleBorderCycle { 0%, 100% { border-color: #52525b; } 50% { border-color: #8b5cf6; } }
+        @keyframes popoverSpinnerSpin { to { transform: rotate(360deg); } }
+        .emote-skeleton-placeholder { position: absolute; inset: 0; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 0 6px; border-radius: 0.5rem; background-color: #27272c; border: 1px solid #52525b; color: #d4d4d8; font-size: 11px; font-weight: 500; line-height: 1.2; text-align: center; pointer-events: none; z-index: 2; }
+        .emote-img-box.is-loading .emote-skeleton-placeholder { animation: skeletonPurpleBorderCycle 1.4s ease-in-out infinite; }
+        .emote-img-box.is-loaded .emote-skeleton-placeholder { opacity: 0; visibility: hidden; animation: none; }
         .top-users-popover, .metric-info-popover, .alias-popover { opacity: 0; visibility: hidden; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); width: 260px; height: max-content; max-height: min(320px, 50vh); overflow-y: auto; scrollbar-width: thin; scrollbar-color: transparent transparent; background-color: #1f1f23; border: 1px solid #3f3f46; box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.85); border-radius: 10px; padding: 12px; margin-bottom: 8px; z-index: 999999; pointer-events: auto; transition: opacity 0.15s ease-in-out, visibility 0.15s ease-in-out; }
         .top-users-popover:hover, .metric-info-popover:hover, .alias-popover:hover { scrollbar-color: #52525b transparent; }
         .table-popover-wrapper .top-users-popover, .table-popover-wrapper .alias-popover { bottom: auto; top: 100%; margin-bottom: 0; margin-top: 8px; }
@@ -41,12 +51,16 @@
         .popover-open-bottom { bottom: auto !important; top: 100% !important; margin-bottom: 0 !important; margin-top: 8px !important; }
         .popover-open-bottom::before { top: -12px !important; bottom: auto !important; height: 12px !important; }
         .popover-open-bottom::after { top: -14px !important; bottom: auto !important; border-color: transparent transparent #1f1f23 transparent !important; }
-        .table-img-popover { opacity: 0; visibility: hidden; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); width: 320px; height: 320px; background-color: #1f1f23; border: 1px solid #3f3f46; box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.85); border-radius: 12px; padding: 16px; margin-bottom: 8px; z-index: 99999; display: flex; align-items: center; justify-content: center; pointer-events: none; transition: opacity 0.15s ease-in-out, visibility 0.15s ease-in-out; }
+        .table-img-popover { opacity: 0; visibility: hidden; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateZ(0); width: 320px; height: 320px; background-color: #1f1f23; border: 1px solid #3f3f46; box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.85); border-radius: 12px; padding: 16px; margin-bottom: 8px; z-index: 999999; display: flex; align-items: center; justify-content: center; pointer-events: none; transition: opacity 0.15s ease-in-out, visibility 0.15s ease-in-out; }
         .table-img-popover img { max-width: 280px; max-height: 280px; object-fit: contain; }
+        .table-popover-loader { position: absolute; inset: 14px; border-radius: 10px; background-color: #27272c; border: 1px solid #52525b; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; text-align: center; z-index: 2; transition: opacity 0.15s ease-in-out, visibility 0.15s ease-in-out; }
+        .table-img-popover.is-loading .table-popover-loader { border-color: #8b5cf6; animation: skeletonPurpleBorderCycle 1.4s ease-in-out infinite; }
+        .table-img-popover.is-loaded .table-popover-loader { opacity: 0; visibility: hidden; animation: none; }
+        .table-popover-spinner { width: 28px; height: 28px; border-radius: 9999px; border: 3px solid rgba(139, 92, 246, 0.25); border-top-color: #a78bfa; animation: popoverSpinnerSpin 0.75s linear infinite; }
         .table-popover-wrapper:hover .table-img-popover { opacity: 1; visibility: visible; }
-        .top-users-popover::-webkit-scrollbar, .metric-info-popover::-webkit-scrollbar, .alias-popover::-webkit-scrollbar { width: 5px; background: transparent; }
-        .top-users-popover::-webkit-scrollbar-thumb, .metric-info-popover::-webkit-scrollbar-thumb, .alias-popover::-webkit-scrollbar-thumb { background: transparent; border-radius: 4px; }
-        .top-users-popover:hover::-webkit-scrollbar-thumb, .metric-info-popover:hover::-webkit-scrollbar-thumb, .alias-popover:hover::-webkit-scrollbar-thumb { background: #52525b; }
+        .top-users-popover::-webkit-scrollbar, .metric-info-popover::-webkit-scrollbar, .alias-popover::-webkit-scrollbar, #debugEmoteGrid::-webkit-scrollbar { width: 5px; background: transparent; }
+        .top-users-popover::-webkit-scrollbar-thumb, .metric-info-popover::-webkit-scrollbar-thumb, .alias-popover::-webkit-scrollbar-thumb, #debugEmoteGrid::-webkit-scrollbar-thumb { background: transparent; border-radius: 4px; }
+        .top-users-popover:hover::-webkit-scrollbar-thumb, .metric-info-popover:hover::-webkit-scrollbar-thumb, .alias-popover:hover::-webkit-scrollbar-thumb, #debugEmoteGrid:hover::-webkit-scrollbar-thumb { background: #52525b; }
     </style>
 </head>
 <body class="min-h-screen p-4 md:p-8">
@@ -137,16 +151,25 @@
             </div>
             <div id="gridViewContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
             <div id="tableViewContainer" class="hidden bg-darkcard border border-darkborder rounded-xl !overflow-visible">
-                <table class="w-full text-left text-sm text-gray-300 !overflow-visible table-fixed">
+                <table class="w-full table-fixed text-left text-sm text-gray-300 !overflow-visible">
+                    <colgroup>
+                        <col class="w-20">
+                        <col class="w-44">
+                        <col class="w-28">
+                        <col class="w-32">
+                        <col class="w-32">
+                        <col>
+                        <col class="w-24">
+                    </colgroup>
                     <thead class="bg-darkbg text-xs uppercase font-semibold text-gray-400 border-b border-darkborder">
                         <tr>
-                            <th class="p-3 w-16">Emote</th>
-                            <th class="p-3 w-48">Name</th>
-                            <th class="p-3 w-28">Usage</th>
-                            <th class="p-3 w-32">Added Date</th>
-                            <th class="p-3 w-32">Last Used</th>
-                            <th class="p-3">Top Users</th>
-                            <th class="p-3 w-24">Link</th>
+                            <th class="p-3 whitespace-nowrap">Emote</th>
+                            <th class="p-3 whitespace-nowrap">Name</th>
+                            <th class="p-3 whitespace-nowrap">Usage</th>
+                            <th class="p-3 whitespace-nowrap">Added Date</th>
+                            <th class="p-3 whitespace-nowrap">Last Used</th>
+                            <th class="p-3 whitespace-nowrap">Top Users</th>
+                            <th class="p-3 whitespace-nowrap">Link</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody" class="divide-y divide-darkborder !overflow-visible"></tbody>
@@ -162,162 +185,609 @@
     <script>
         const rawEmotesDataset = JSON.parse(document.getElementById("emotes-json").value).map(e => ({
             ...e,
+            img1xUrl: e.emoteId ? "https://cdn.7tv.app/emote/" + e.emoteId + "/1x.webp" : "",
             imgUrl: e.emoteId ? "https://cdn.7tv.app/emote/" + e.emoteId + "/2x.webp" : "",
             img4xUrl: e.emoteId ? "https://cdn.7tv.app/emote/" + e.emoteId + "/4x.webp" : "",
             pageUrl: e.emoteId ? "https://7tv.app/emotes/" + e.emoteId : "#"
         }));
         const globalLiveHours = JSON.parse(document.getElementById("livehours-json").value);
+        const DEBUG_OVERLAY_ENABLED = false;
         let currentView = "grid";
-        const IMAGE_LOAD_TIMEOUT_MS = 12000;
-        const SCROLL_SETTLE_DELAY_MS = 180;
-        const BG_WORKER_GAP_MS = 80;
-        const BG_BATCH_GAP_MS = 220;
-        let allPendingImages = new Set();
-        let activeLoaders = new Map();
-        let bgTimer = null;
-        let enqueueTimer = null;
-        let scrollSettleTimer = null;
-        let isScrolling = false;
-        let cycleToken = 0;
-        let cachedCols = 6;
-        function refreshCachedColumnsCount() {
-            if (currentView !== "grid") { cachedCols = 1; return cachedCols; }
-            const gridEl = document.getElementById("gridViewContainer");
-            if (!gridEl || gridEl.classList.contains("hidden")) { cachedCols = 6; return cachedCols; }
-            const cols = window.getComputedStyle(gridEl).gridTemplateColumns;
-            if (cols && cols !== "none") { const c = cols.trim().split(/\s+/).filter(Boolean).length; if (c > 0) { cachedCols = c; return cachedCols; } }
-            cachedCols = 6;
-            return cachedCols;
+        let renderedEmoteMap = new Map();
+        let emoteLoadStates = new Map();
+        let visibleEmoteIndices = new Set();
+        const IMAGE_LOAD_TIMEOUT_MS = 6000;
+        const ANIM_SETTLE_MAX_MS = 1200;
+        const TABLE_1X_SETTLE_MAX_MS = 450;
+        const SETTLE_SYNC_DELAY_MS = 45;
+        const INITIAL_IMAGE_LOAD_DELAY_MS = 200;
+        const POST_LOAD_START_DELAY_MS = 100;
+        const PRELOAD_STEP_DELAY_MS = 0;
+        const PRELOAD_PAGE_DEPTH = 2;
+        const TABLE_PRELOAD_MULTIPLIER = 2;
+        const MAX_CONCURRENT_PRELOAD_TASKS = 5;
+        const NAV_KEYS = new Set(["PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "]);
+        function getPreloadPageDepth() { return currentView === "table" ? PRELOAD_PAGE_DEPTH * TABLE_PRELOAD_MULTIPLIER : PRELOAD_PAGE_DEPTH; }
+        function getMaxConcurrentPreloadTasks() { return currentView === "table" ? MAX_CONCURRENT_PRELOAD_TASKS * TABLE_PRELOAD_MULTIPLIER : MAX_CONCURRENT_PRELOAD_TASKS; }
+        function isTable1xImage(img, srcUrl) { if (currentView === "table" && !img.closest(".table-img-popover")) return true; return typeof srcUrl === "string" && /\/1x\.webp(?:\?|$)/i.test(srcUrl); }
+        let viewportQueue = [];
+        let inFlightImages = new Set();
+        let preloadPromotedImages = new Set();
+        let priorityImages = new Set();
+        let settleTimer = null;
+        let initialLoadTimer = null;
+        let postLoadTimer = null;
+        let preloadTimer = null;
+        let rafId = null;
+        let nextPreloadDir = "bottom";
+        let pageLoadCompleted = document.readyState === "complete";
+        let debugSyncTimer = null;
+        let lastRecordedBytes = 0;
+        let lastSpeedSampleTime = performance.now();
+        let currentNetSpeedBps = 0;
+        let activeResourceEntries = 0;
+        let debugUserScrolling = false;
+        let debugUserScrollTimer = null;
+        function clearInitialLoadTimer() {
+            if (initialLoadTimer) { clearTimeout(initialLoadTimer); initialLoadTimer = null; }
+            if (postLoadTimer) { clearTimeout(postLoadTimer); postLoadTimer = null; }
         }
-        function getBackgroundThreadConcurrency() { return Math.max(1, Math.min(2, Math.floor(cachedCols / 3))); }
-        function clearBackgroundTimers() { if (bgTimer) { clearTimeout(bgTimer); bgTimer = null; } if (enqueueTimer) { clearTimeout(enqueueTimer); enqueueTimer = null; } }
-        function detachBackgroundLoader(img, info) {
-            if (!info) return;
-            if (info.detach) info.detach();
-            activeLoaders.delete(img);
-            if (info.src && img && img.isConnected) { img.setAttribute("data-src", info.src); allPendingImages.add(img); }
+        function markPageLoadCompleted() {
+            pageLoadCompleted = true;
+            if (viewportQueue.length > 0 && inFlightImages.size === 0 && !postLoadTimer) {
+                postLoadTimer = setTimeout(() => {
+                    postLoadTimer = null;
+                    if (!initialLoadTimer && viewportQueue.length > 0) loadVisibleViewportImages();
+                }, POST_LOAD_START_DELAY_MS);
+            }
         }
-        function pauseBackgroundWorkersForScroll() {
-            if (bgTimer) { clearTimeout(bgTimer); bgTimer = null; }
-            activeLoaders.forEach((info, img) => { if (info && info.isBackground) detachBackgroundLoader(img, info); });
+        window.addEventListener("load", markPageLoadCompleted, { once: true });
+        function setSkeletonLoadingState(img, loading) {
+            if (!img) return;
+            const popover = img.closest(".table-img-popover");
+            if (popover) {
+                if (loading) { popover.classList.add("is-loading"); popover.classList.remove("is-loaded"); }
+                else { popover.classList.remove("is-loading"); popover.classList.add("is-loaded"); }
+                return;
+            }
+            const box = img.closest(".emote-img-box");
+            if (!box) return;
+            if (loading) { box.classList.add("is-loading"); box.classList.remove("is-loaded"); }
+            else { box.classList.remove("is-loading"); box.classList.add("is-loaded"); }
         }
-        function startImageLoad(img, isBackground, token, onSlotDone) {
-            const dataSrc = img.getAttribute("data-src");
-            if (!dataSrc || !img.isConnected || token !== cycleToken) { if (onSlotDone) onSlotDone(); return; }
-            allPendingImages.delete(img);
+        function resetSkeletonToIdle(img) {
+            if (!img) return;
+            const popover = img.closest(".table-img-popover");
+            if (popover) {
+                popover.classList.remove("is-loading");
+                popover.classList.remove("is-loaded");
+                const statusEl = popover.querySelector("[data-popover-status]");
+                if (statusEl) statusEl.textContent = "Loading 4x preview...";
+                return;
+            }
+            const box = img.closest(".emote-img-box");
+            if (!box) return;
+            box.classList.remove("is-loading");
+            box.classList.remove("is-loaded");
+        }
+        function getPageScrollRatio() {
+            const docEl = document.documentElement;
+            const scrollTop = window.scrollY || window.pageYOffset || docEl.scrollTop || document.body.scrollTop || 0;
+            const maxScroll = Math.max((docEl ? docEl.scrollHeight : 0), (document.body ? document.body.scrollHeight : 0)) - (window.innerHeight || (docEl ? docEl.clientHeight : 0) || 800);
+            if (maxScroll <= 0) return 0;
+            return Math.min(1, Math.max(0, scrollTop / maxScroll));
+        }
+        function syncDebugGridScrollWithPage(force) {
+            if (!DEBUG_OVERLAY_ENABLED) return;
+            const elGrid = document.getElementById("debugEmoteGrid");
+            const bodyEl = document.getElementById("debugOverlayBody");
+            if (!elGrid || (bodyEl && bodyEl.classList.contains("hidden"))) return;
+            if (!force && debugUserScrolling) return;
+            const maxDebugScroll = Math.max(0, elGrid.scrollHeight - elGrid.clientHeight);
+            elGrid.scrollTop = Math.round(maxDebugScroll * getPageScrollRatio());
+        }
+        function formatBytesShort(bytes) {
+            if (!bytes || isNaN(bytes) || bytes <= 0) return "0 B";
+            if (bytes < 1024) return Math.round(bytes) + " B";
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+            return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+        }
+        function getTotalBytesReceived() {
+            if (typeof performance === "undefined" || typeof performance.getEntriesByType !== "function") return 0;
+            const entries = performance.getEntriesByType("resource") || [];
+            let total = 0;
+            for (let i = 0; i < entries.length; i++) {
+                const e = entries[i];
+                const b = (typeof e.transferSize === "number" && e.transferSize > 0) ? e.transferSize : ((typeof e.encodedBodySize === "number" && e.encodedBodySize > 0) ? e.encodedBodySize : (e.decodedBodySize || 0));
+                total += b;
+            }
+            return total;
+        }
+        function refreshVisibleEmoteIndices() {
+            const nextVisible = new Set();
+            const activeContainer = currentView === "grid" ? document.getElementById("gridViewContainer") : document.getElementById("tableViewContainer");
+            if (activeContainer && !activeContainer.classList.contains("hidden")) {
+                const imgs = activeContainer.querySelectorAll("img[data-debug-idx]");
+                for (let i = 0; i < imgs.length; i++) {
+                    const img = imgs[i];
+                    if (img.closest(".table-img-popover")) continue;
+                    if (isStrictlyInViewport(img)) {
+                        const idx = parseInt(img.getAttribute("data-debug-idx"), 10);
+                        if (!isNaN(idx)) nextVisible.add(idx);
+                    }
+                }
+            }
+            visibleEmoteIndices = nextVisible;
+        }
+        function scheduleDebugUpdate() {
+            if (!DEBUG_OVERLAY_ENABLED) return;
+            if (debugSyncTimer) return;
+            debugSyncTimer = setTimeout(() => { debugSyncTimer = null; updateDebugOverlay(); }, 80);
+        }
+        function setEmoteDebugState(img, state) {
+            if (!img || img.closest(".table-img-popover")) return;
+            const idxStr = img.getAttribute("data-debug-idx");
+            if (idxStr !== null) {
+                const idx = parseInt(idxStr, 10);
+                if (!isNaN(idx)) emoteLoadStates.set(idx, state);
+            }
+            scheduleDebugUpdate();
+        }
+        function buildDebugTileMeta(idx, state, inViewport) {
+            let boxClass = "bg-red-950/70 border-red-700/70 text-red-300";
+            let badgeClass = "text-red-400";
+            let iconChar = "✕";
+            let statusTxt = "Not loaded";
+            if (state === "loading") {
+                boxClass = "bg-amber-950/70 border-amber-600/80 text-amber-200";
+                badgeClass = "text-amber-400 animate-pulse";
+                iconChar = "⟳";
+                statusTxt = "Loading / decoding animation frames";
+            } else if (state === "loaded") {
+                boxClass = "bg-emerald-950/70 border-emerald-600/70 text-emerald-200";
+                badgeClass = "text-emerald-400";
+                iconChar = "✓";
+                statusTxt = "Loaded";
+            }
+            const viewportClass = inViewport ? " ring-2 ring-sky-400 border-sky-300 shadow-[0_0_8px_rgba(56,189,248,0.65)] bg-sky-950/50" : "";
+            const titleTxt = "#" + (idx + 1) + " - " + statusTxt + (inViewport ? " [In Viewport]" : "");
+            return { boxClass: boxClass + viewportClass, badgeClass, iconChar, titleTxt };
+        }
+        function updateDebugOverlay() {
+            if (!DEBUG_OVERLAY_ENABLED) return;
+            refreshVisibleEmoteIndices();
+            const elActive = document.getElementById("dbgActiveReqs");
+            const elSpeed = document.getElementById("dbgNetSpeed");
+            const elBytes = document.getElementById("dbgBytesRecv");
+            const elRam = document.getElementById("dbgRamUsage");
+            const elCounts = document.getElementById("dbgEmoteCounts");
+            const elGrid = document.getElementById("debugEmoteGrid");
+            if (!elGrid) return;
+            const now = performance.now();
+            const totalBytes = getTotalBytesReceived();
+            const elapsedSec = Math.max((now - lastSpeedSampleTime) / 1000, 0.25);
+            if (totalBytes >= lastRecordedBytes) {
+                const deltaBytes = totalBytes - lastRecordedBytes;
+                if (deltaBytes > 0) currentNetSpeedBps = deltaBytes / elapsedSec;
+                else if (elapsedSec >= 1) currentNetSpeedBps = 0;
+                lastRecordedBytes = totalBytes;
+                lastSpeedSampleTime = now;
+            }
+            const activeCount = Math.max(inFlightImages.size, activeResourceEntries);
+            if (elActive) elActive.textContent = String(activeCount);
+            if (elSpeed) elSpeed.textContent = formatBytesShort(currentNetSpeedBps) + "/s";
+            if (elBytes) elBytes.textContent = formatBytesShort(totalBytes);
+            if (elRam) elRam.textContent = "N/A";
+            let idleCnt = 0, loadingCnt = 0, loadedCnt = 0;
+            const entries = [];
+            emoteLoadStates.forEach((state, idx) => {
+                if (state === "loaded") loadedCnt++;
+                else if (state === "loading") loadingCnt++;
+                else idleCnt++;
+                entries.push({ idx, state, inViewport: visibleEmoteIndices.has(idx) });
+            });
+            if (elCounts) elCounts.textContent = idleCnt + "/" + loadingCnt + "/" + loadedCnt;
+            if (elGrid.children.length === entries.length) {
+                for (let i = 0; i < entries.length; i++) {
+                    const { idx, state, inViewport } = entries[i];
+                    const viewFlag = inViewport ? "1" : "0";
+                    const tile = elGrid.children[i];
+                    if (tile.getAttribute("data-dbg-state") !== state || tile.getAttribute("data-dbg-inview") !== viewFlag) {
+                        const meta = buildDebugTileMeta(idx, state, inViewport);
+                        tile.setAttribute("data-dbg-state", state);
+                        tile.setAttribute("data-dbg-inview", viewFlag);
+                        tile.title = meta.titleTxt;
+                        tile.className = "flex items-center justify-between px-1 py-0.5 rounded border font-mono text-[9px] leading-none transition-shadow " + meta.boxClass;
+                        tile.innerHTML = "<span>" + (idx + 1) + "</span><span class=\"font-bold " + meta.badgeClass + "\">" + meta.iconChar + "</span>";
+                    }
+                }
+            } else {
+                elGrid.innerHTML = entries.map(({ idx, state, inViewport }) => {
+                    const meta = buildDebugTileMeta(idx, state, inViewport);
+                    return "<div data-dbg-state=\"" + state + "\" data-dbg-inview=\"" + (inViewport ? "1" : "0") + "\" title=\"" + meta.titleTxt + "\" class=\"flex items-center justify-between px-1 py-0.5 rounded border font-mono text-[9px] leading-none transition-shadow " + meta.boxClass + "\"><span>" + (idx + 1) + "</span><span class=\"font-bold " + meta.badgeClass + "\">" + meta.iconChar + "</span></div>";
+                }).join("");
+                syncDebugGridScrollWithPage(true);
+            }
+        }
+        if (DEBUG_OVERLAY_ENABLED && typeof PerformanceObserver === "function") {
+            try {
+                const obs = new PerformanceObserver((list) => {
+                    const entries = list.getEntries() || [];
+                    for (let i = 0; i < entries.length; i++) {
+                        const ent = entries[i];
+                        const bytes = ent.transferSize || ent.encodedBodySize || 0;
+                        const durSec = Math.max((ent.duration || 10) / 1000, 0.01);
+                        if (bytes > 0) currentNetSpeedBps = bytes / durSec;
+                    }
+                    scheduleDebugUpdate();
+                });
+                obs.observe({ type: "resource", buffered: true });
+            } catch (e) {}
+        }
+        if (DEBUG_OVERLAY_ENABLED) {
+            setInterval(updateDebugOverlay, 500);
+            window.addEventListener("scroll", () => { syncDebugGridScrollWithPage(false); scheduleDebugUpdate(); }, { passive: true });
+            window.addEventListener("resize", () => { syncDebugGridScrollWithPage(false); scheduleDebugUpdate(); }, { passive: true });
+            document.addEventListener("wheel", (e) => {
+                const elGrid = document.getElementById("debugEmoteGrid");
+                if (elGrid && e.target && elGrid.contains(e.target)) {
+                    debugUserScrolling = true;
+                    if (debugUserScrollTimer) clearTimeout(debugUserScrollTimer);
+                    debugUserScrollTimer = setTimeout(() => { debugUserScrolling = false; }, 1200);
+                }
+            }, { passive: true });
+            document.addEventListener("click", (e) => {
+                if (e.target && e.target.id === "debugToggleBtn") {
+                    const bodyEl = document.getElementById("debugOverlayBody");
+                    if (bodyEl) {
+                        const hidden = bodyEl.classList.toggle("hidden");
+                        e.target.textContent = hidden ? "Show" : "Hide";
+                        if (!hidden) { syncDebugGridScrollWithPage(true); updateDebugOverlay(); }
+                    }
+                }
+            });
+        }
+        function getVisualRect(img) {
+            const r = img.getBoundingClientRect();
+            if (r.width > 0 || r.height > 0) return r;
+            const host = img.closest(".emote-card-wrapper") || img.closest("tr") || img.parentElement;
+            if (!host || host.offsetParent === null) return null;
+            return host.getBoundingClientRect();
+        }
+        function isStrictlyInViewport(img) {
+            if (!img || !img.isConnected) return false;
+            const vh = window.innerHeight || document.documentElement.clientHeight || 800;
+            const vw = window.innerWidth || document.documentElement.clientWidth || 1280;
+            const rect = getVisualRect(img);
+            if (!rect) return false;
+            return rect.bottom > 0 && rect.top < vh && rect.right > 0 && rect.left < vw;
+        }
+        function compareVisualOrder(a, b) {
+            const ra = getVisualRect(a), rb = getVisualRect(b);
+            if (!ra && !rb) return 0; if (!ra) return 1; if (!rb) return -1;
+            const rowDiff = Math.round(ra.top) - Math.round(rb.top);
+            if (Math.abs(rowDiff) > 8) return rowDiff;
+            return Math.round(ra.left) - Math.round(rb.left);
+        }
+        function clearPreloadSchedule(resetState) {
+            if (preloadTimer) { clearTimeout(preloadTimer); preloadTimer = null; }
+            if (resetState) { nextPreloadDir = "bottom"; preloadPromotedImages.clear(); }
+        }
+        function collectNextPreloadEmote(direction) {
+            const vh = window.innerHeight || document.documentElement.clientHeight || 800;
+            const maxPreloadOffset = vh * getPreloadPageDepth();
+            const candidates = [];
+            for (let i = 0; i < viewportQueue.length; i++) {
+                const img = viewportQueue[i];
+                if (!img || !img.isConnected || preloadPromotedImages.has(img) || priorityImages.has(img)) continue;
+                const srcUrl = img.getAttribute("data-src");
+                if (!srcUrl || isStrictlyInViewport(img)) continue;
+                const rect = getVisualRect(img);
+                if (!rect) continue;
+                if (direction === "bottom") {
+                    const distBelow = rect.top - vh;
+                    if (distBelow >= -1 && distBelow <= maxPreloadOffset) candidates.push({ img, top: rect.top, left: rect.left });
+                } else if (direction === "top") {
+                    const distAbove = -rect.bottom;
+                    if (distAbove >= -1 && distAbove <= maxPreloadOffset) candidates.push({ img, top: rect.top, left: rect.left });
+                }
+            }
+            if (candidates.length === 0) return null;
+            if (direction === "bottom") { candidates.sort((a, b) => { const dy = Math.round(a.top) - Math.round(b.top); return Math.abs(dy) > 8 ? dy : Math.round(a.left) - Math.round(b.left); }); }
+            else { candidates.sort((a, b) => { const dy = Math.round(b.top) - Math.round(a.top); return Math.abs(dy) > 8 ? dy : Math.round(a.left) - Math.round(b.left); }); }
+            return candidates[0].img;
+        }
+        function fillPreloadSlots() {
+            const hasVisiblePending = viewportQueue.some(img => img && img.isConnected && img.getAttribute("data-src") && isStrictlyInViewport(img));
+            if (hasVisiblePending) return;
+            const maxSlots = getMaxConcurrentPreloadTasks();
+            while (preloadPromotedImages.size < maxSlots) {
+                const dirsToTry = nextPreloadDir === "bottom" ? ["bottom", "top"] : ["top", "bottom"];
+                let pickedImg = null, chosenDir = null;
+                for (let i = 0; i < dirsToTry.length; i++) {
+                    const d = dirsToTry[i];
+                    const candidate = collectNextPreloadEmote(d);
+                    if (candidate) { pickedImg = candidate; chosenDir = d; break; }
+                }
+                if (!pickedImg || !chosenDir) break;
+                nextPreloadDir = chosenDir === "bottom" ? "top" : "bottom";
+                const qIdx = viewportQueue.indexOf(pickedImg);
+                if (qIdx !== -1) viewportQueue.splice(qIdx, 1);
+                preloadPromotedImages.add(pickedImg);
+                startViewportImage(pickedImg, false);
+            }
+        }
+        function scheduleNextPreloadStep() {
+            if (preloadTimer) { clearTimeout(preloadTimer); preloadTimer = null; }
+            if (preloadPromotedImages.size >= getMaxConcurrentPreloadTasks()) return;
+            const hasVisiblePending = viewportQueue.some(img => img && img.isConnected && img.getAttribute("data-src") && isStrictlyInViewport(img));
+            if (hasVisiblePending) return;
+            if (PRELOAD_STEP_DELAY_MS <= 0) { fillPreloadSlots(); return; }
+            preloadTimer = setTimeout(() => { preloadTimer = null; fillPreloadSlots(); }, PRELOAD_STEP_DELAY_MS);
+        }
+        function abortSingleInFlightEntry(entry, restorePending) {
+            if (!entry) return;
+            const { img, onLoad, onError, timerId, frameRafId, decodeGuardId, srcUrl } = entry;
+            clearTimeout(timerId);
+            if (decodeGuardId) clearTimeout(decodeGuardId);
+            if (frameRafId && typeof window.cancelAnimationFrame === "function") window.cancelAnimationFrame(frameRafId);
+            img.removeEventListener("load", onLoad);
+            img.removeEventListener("error", onError);
+            inFlightImages.delete(entry);
+            preloadPromotedImages.delete(img);
+            priorityImages.delete(img);
+            if (restorePending && img && img.isConnected && srcUrl) {
+                img.removeAttribute("src");
+                img.setAttribute("data-src", srcUrl);
+                resetSkeletonToIdle(img);
+                setEmoteDebugState(img, "idle");
+                if (!img.closest(".table-img-popover") && viewportQueue.indexOf(img) === -1) viewportQueue.push(img);
+            }
+        }
+        function cancelOffscreenInFlightImages() {
+            Array.from(inFlightImages).forEach(entry => {
+                const { img } = entry;
+                if (!img || !img.isConnected) { abortSingleInFlightEntry(entry, true); return; }
+                if (priorityImages.has(img)) return;
+                const keepPreloaded = preloadPromotedImages.has(img);
+                if (!keepPreloaded && !isStrictlyInViewport(img)) {
+                    abortSingleInFlightEntry(entry, true);
+                }
+            });
+            scheduleDebugUpdate();
+        }
+        function clearAllInFlightImages() {
+            Array.from(inFlightImages).forEach(entry => {
+                abortSingleInFlightEntry(entry, false);
+            });
+            inFlightImages.clear();
+            preloadPromotedImages.clear();
+            priorityImages.clear();
+            scheduleDebugUpdate();
+        }
+        function cancelAllInFlightRequests() {
+            clearInitialLoadTimer();
+            clearPreloadSchedule(true);
+            if (settleTimer) { clearTimeout(settleTimer); settleTimer = null; }
+            if (rafId && typeof window.cancelAnimationFrame === "function") { window.cancelAnimationFrame(rafId); rafId = null; }
+            Array.from(inFlightImages).forEach(entry => {
+                abortSingleInFlightEntry(entry, true);
+            });
+            inFlightImages.clear();
+            preloadPromotedImages.clear();
+            priorityImages.clear();
+            viewportQueue = [];
+            scheduleDebugUpdate();
+        }
+        function startViewportImage(img, isPriority) {
+            if (!img || !img.isConnected) return;
+            const srcUrl = img.getAttribute("data-src");
+            if (!srcUrl) return;
+            for (const entry of inFlightImages) { if (entry.img === img) return; }
+            const fast1x = isTable1xImage(img, srcUrl);
+            const maxSettleMs = fast1x ? TABLE_1X_SETTLE_MAX_MS : ANIM_SETTLE_MAX_MS;
+            const minSettleMs = fast1x ? 120 : 300;
+            const targetFrames = fast1x ? 6 : 18;
+            if (isPriority) priorityImages.add(img);
             img.removeAttribute("data-src");
-            img.decoding = "async";
-            try { img.fetchPriority = isBackground ? "low" : "high"; } catch (_) {}
-            let settled = false;
-            const settle = (notifySlot) => {
-                if (settled) return;
-                settled = true;
-                clearTimeout(timerId);
-                img.removeEventListener("load", onLoad);
-                img.removeEventListener("error", onError);
-                activeLoaders.delete(img);
-                if (notifySlot && token === cycleToken && onSlotDone) onSlotDone();
+            img.decoding = fast1x ? "sync" : "async";
+            if (isPriority && "fetchPriority" in img) { try { img.fetchPriority = "high"; } catch (e) {} }
+            setSkeletonLoadingState(img, true);
+            setEmoteDebugState(img, "loading");
+            let done = false, entryRef = null;
+            const finish = (failed) => {
+                if (done) return; done = true;
+                if (entryRef) { clearTimeout(entryRef.timerId); if (entryRef.decodeGuardId) clearTimeout(entryRef.decodeGuardId); if (entryRef.frameRafId && typeof window.cancelAnimationFrame === "function") window.cancelAnimationFrame(entryRef.frameRafId); img.removeEventListener("load", onLoad); img.removeEventListener("error", onError); inFlightImages.delete(entryRef); }
+                preloadPromotedImages.delete(img);
+                priorityImages.delete(img);
+                setEmoteDebugState(img, "loaded");
+                if (failed) window.handleImgError(img); else { setSkeletonLoadingState(img, false); window.handleImgLoad(img); }
+                scheduleNextPreloadStep();
             };
-            const onLoad = () => { window.handleImgLoad(img); settle(true); };
-            const onError = () => { window.handleImgError(img); settle(true); };
-            const timerId = setTimeout(() => { window.handleImgLoad(img); settle(true); }, IMAGE_LOAD_TIMEOUT_MS);
+            const waitFullDecodeAndFrames = () => {
+                if (done || !entryRef || !inFlightImages.has(entryRef)) return;
+                if (fast1x) { finish(false); return; }
+                const afterDecode = () => {
+                    if (done || !entryRef || !inFlightImages.has(entryRef)) return;
+                    if (typeof window.requestAnimationFrame === "function") {
+                        const startTime = performance.now();
+                        let lastFrameTime = startTime;
+                        let frameCount = 0;
+                        let hasFrameDelta = false;
+                        const stepFrame = (now) => {
+                            if (done || !entryRef || !inFlightImages.has(entryRef)) return;
+                            if (!img.isConnected) { finish(false); return; }
+                            frameCount++;
+                            if (now - lastFrameTime > 4) hasFrameDelta = true;
+                            lastFrameTime = now;
+                            const elapsed = now - startTime;
+                            if (elapsed >= maxSettleMs || (frameCount >= targetFrames && hasFrameDelta && elapsed >= minSettleMs)) finish(false);
+                            else if (entryRef) entryRef.frameRafId = window.requestAnimationFrame(stepFrame);
+                            else finish(false);
+                        };
+                        if (entryRef) entryRef.frameRafId = window.requestAnimationFrame(stepFrame);
+                        else finish(false);
+                    } else finish(false);
+                };
+                if (typeof img.decode === "function") {
+                    let decodeSettled = false;
+                    const decodeGuard = setTimeout(() => { if (!decodeSettled) { decodeSettled = true; afterDecode(); } }, 350);
+                    if (entryRef) entryRef.decodeGuardId = decodeGuard;
+                    img.decode().then(
+                        () => { if (!decodeSettled) { decodeSettled = true; clearTimeout(decodeGuard); afterDecode(); } },
+                        () => { if (!decodeSettled) { decodeSettled = true; clearTimeout(decodeGuard); afterDecode(); } }
+                    );
+                } else afterDecode();
+            };
+            const onLoad = () => waitFullDecodeAndFrames();
+            const onError = () => finish(true);
+            const timerId = setTimeout(() => finish(false), IMAGE_LOAD_TIMEOUT_MS);
+            entryRef = { img, onLoad, onError, timerId, decodeGuardId: null, frameRafId: null, srcUrl };
+            inFlightImages.add(entryRef);
+            scheduleDebugUpdate();
             img.addEventListener("load", onLoad, { once: true });
             img.addEventListener("error", onError, { once: true });
-            activeLoaders.set(img, { src: dataSrc, isBackground: !!isBackground, detach: () => settle(false) });
-            img.src = dataSrc;
+            img.src = srcUrl;
         }
-        function runBatchWithConcurrency(imgs, maxConcurrent, isBackground, token, onBatchComplete) {
-            if (token !== cycleToken || (isBackground && isScrolling)) return;
-            const queue = imgs.filter(img => img && img.isConnected && img.getAttribute("data-src"));
-            if (queue.length === 0) { if (onBatchComplete) onBatchComplete(); return; }
-            let inFlight = 0;
-            let remaining = queue.length;
-            let batchFinished = false;
-            function markOneDone() {
-                if (batchFinished) return;
-                remaining = Math.max(0, remaining - 1);
-                if (remaining === 0) {
-                    batchFinished = true;
-                    if (token === cycleToken && !(isBackground && isScrolling) && onBatchComplete) onBatchComplete();
-                } else if (!isBackground || !isScrolling) {
-                    if (isBackground) bgTimer = setTimeout(pumpQueue, BG_WORKER_GAP_MS);
-                    else pumpQueue();
-                }
-            }
-            function pumpQueue() {
-                if (batchFinished || token !== cycleToken || (isBackground && isScrolling)) return;
-                while (!batchFinished && token === cycleToken && !(isBackground && isScrolling) && inFlight < maxConcurrent && queue.length > 0) {
-                    const img = queue.shift();
-                    if (!img || !img.isConnected || !img.getAttribute("data-src")) { markOneDone(); continue; }
-                    inFlight++;
-                    startImageLoad(img, isBackground, token, () => { inFlight = Math.max(0, inFlight - 1); markOneDone(); });
-                }
-            }
-            pumpQueue();
-        }
-        function getOrderedPendingBuckets() {
-            const vh = window.innerHeight || document.documentElement.clientHeight || 800;
-            const viewportImgs = [];
-            const offscreenEntries = [];
-            allPendingImages.forEach(img => {
-                if (!img || !img.isConnected || !img.getAttribute("data-src")) { allPendingImages.delete(img); return; }
-                if (img.closest(".table-img-popover")) return;
-                const rect = img.getBoundingClientRect();
-                const inViewport = rect.bottom > -100 && rect.top < vh + 100;
-                if (inViewport) viewportImgs.push({ img, top: rect.top });
-                else { const dist = rect.top >= vh ? (rect.top - vh) : (vh + Math.abs(rect.bottom)); offscreenEntries.push({ img, dist }); }
+        function prioritizeTablePopoverImage(previewImg) {
+            if (!previewImg || !previewImg.isConnected) return;
+            const srcUrl = previewImg.getAttribute("data-src");
+            if (!srcUrl) return;
+            clearPreloadSchedule(true);
+            Array.from(inFlightImages).forEach(entry => {
+                const { img } = entry;
+                if (img === previewImg) return;
+                if (!img || !img.isConnected || !isStrictlyInViewport(img)) abortSingleInFlightEntry(entry, true);
             });
-            viewportImgs.sort((a, b) => a.top - b.top);
-            offscreenEntries.sort((a, b) => a.dist - b.dist);
-            return { viewportImgs: viewportImgs.map(x => x.img), offscreenImgs: offscreenEntries.map(x => x.img) };
+            startViewportImage(previewImg, true);
         }
-        function scheduleBackgroundStream(token) {
-            if (token !== cycleToken || isScrolling) return;
-            const bgConcurrency = getBackgroundThreadConcurrency();
-            function pumpBackground() {
-                if (token !== cycleToken || isScrolling) return;
-                const { offscreenImgs } = getOrderedPendingBuckets();
-                if (offscreenImgs.length === 0) return;
-                const chunk = offscreenImgs.slice(0, bgConcurrency * 2);
-                runBatchWithConcurrency(chunk, bgConcurrency, true, token, () => {
-                    if (token !== cycleToken || isScrolling) return;
-                    bgTimer = setTimeout(pumpBackground, BG_BATCH_GAP_MS);
-                });
+        function loadVisibleViewportImages() {
+            if (!pageLoadCompleted) return;
+            cancelOffscreenInFlightImages();
+            const visibleCandidates = [], offscreenQueue = [];
+            for (let i = 0; i < viewportQueue.length; i++) {
+                const img = viewportQueue[i];
+                if (!img || !img.isConnected) continue;
+                const srcUrl = img.getAttribute("data-src");
+                if (!srcUrl) continue;
+                if (isStrictlyInViewport(img)) visibleCandidates.push(img);
+                else offscreenQueue.push(img);
             }
-            bgTimer = setTimeout(pumpBackground, BG_WORKER_GAP_MS);
+            visibleCandidates.sort(compareVisualOrder);
+            viewportQueue = visibleCandidates.concat(offscreenQueue);
+            for (let i = 0; i < visibleCandidates.length; i++) {
+                const candidate = visibleCandidates[i];
+                const idx = viewportQueue.indexOf(candidate);
+                if (idx !== -1) viewportQueue.splice(idx, 1);
+                startViewportImage(candidate, false);
+            }
+            scheduleNextPreloadStep();
+            scheduleDebugUpdate();
         }
-        function dispatchImageLoading(token) {
-            if (token !== cycleToken || isScrolling) return;
-            refreshCachedColumnsCount();
-            const { viewportImgs } = getOrderedPendingBuckets();
-            if (viewportImgs.length > 0) runBatchWithConcurrency(viewportImgs, cachedCols, false, token, () => { scheduleBackgroundStream(token); });
-            else scheduleBackgroundStream(token);
+        function triggerViewportSync() {
+            clearPreloadSchedule(true);
+            cancelOffscreenInFlightImages();
+            if (!pageLoadCompleted || initialLoadTimer || postLoadTimer) return;
+            if (!rafId && typeof window.requestAnimationFrame === "function") {
+                rafId = window.requestAnimationFrame(() => { rafId = null; loadVisibleViewportImages(); });
+            } else { loadVisibleViewportImages(); }
+            if (settleTimer) clearTimeout(settleTimer);
+            settleTimer = setTimeout(() => { settleTimer = null; loadVisibleViewportImages(); }, SETTLE_SYNC_DELAY_MS);
+        }
+        function handleNavigationKey(e) {
+            if (!e || e.ctrlKey || e.metaKey || e.altKey || !NAV_KEYS.has(e.key)) return;
+            const tag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : "";
+            if ((tag === "input" || tag === "textarea" || tag === "select") && e.key !== "PageUp" && e.key !== "PageDown" && e.key !== "Home" && e.key !== "End") return;
+            triggerViewportSync();
+        }
+        function scheduleInitialImageLoad() {
+            clearInitialLoadTimer();
+            const runAfterLoad = () => {
+                postLoadTimer = setTimeout(() => {
+                    postLoadTimer = null;
+                    loadVisibleViewportImages();
+                }, POST_LOAD_START_DELAY_MS);
+            };
+            initialLoadTimer = setTimeout(() => {
+                initialLoadTimer = null;
+                if (pageLoadCompleted || document.readyState === "complete") {
+                    pageLoadCompleted = true;
+                    runAfterLoad();
+                } else {
+                    window.addEventListener("load", () => { pageLoadCompleted = true; runAfterLoad(); }, { once: true });
+                }
+            }, INITIAL_IMAGE_LOAD_DELAY_MS);
         }
         function enqueueImages(imgElements) {
-            clearBackgroundTimers();
-            cycleToken++;
-            const token = cycleToken;
-            activeLoaders.forEach((info) => { if (info && info.detach) info.detach(); });
-            activeLoaders.clear();
-            allPendingImages.clear();
-            Array.from(imgElements || []).forEach(img => { if (img && img.getAttribute("data-src")) allPendingImages.add(img); });
-            const startAfterPaint = () => { enqueueTimer = setTimeout(() => { if (token === cycleToken && !isScrolling) dispatchImageLoading(token); }, 0); };
-            if (typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(startAfterPaint);
-            else startAfterPaint();
+            clearInitialLoadTimer();
+            clearPreloadSchedule(true);
+            if (settleTimer) { clearTimeout(settleTimer); settleTimer = null; }
+            if (rafId && typeof window.cancelAnimationFrame === "function") { window.cancelAnimationFrame(rafId); rafId = null; }
+            clearAllInFlightImages();
+            viewportQueue = [];
+            emoteLoadStates = new Map();
+            Array.from(imgElements || []).forEach((img, i) => {
+                if (img && img.getAttribute("data-src") && !img.closest(".table-img-popover")) {
+                    const idxAttr = img.getAttribute("data-debug-idx");
+                    const dIdx = idxAttr !== null ? parseInt(idxAttr, 10) : i;
+                    img.setAttribute("data-debug-idx", String(dIdx));
+                    emoteLoadStates.set(dIdx, "idle");
+                    viewportQueue.push(img);
+                }
+            });
+            scheduleDebugUpdate();
+            if (viewportQueue.length > 0) {
+                scheduleInitialImageLoad();
+            }
         }
-        window.addEventListener("scroll", () => {
-            isScrolling = true;
-            pauseBackgroundWorkersForScroll();
-            if (scrollSettleTimer) clearTimeout(scrollSettleTimer);
-            scrollSettleTimer = setTimeout(() => { isScrolling = false; cycleToken++; dispatchImageLoading(cycleToken); }, SCROLL_SETTLE_DELAY_MS);
-        }, { passive: true });
-        window.addEventListener("resize", () => { refreshCachedColumnsCount(); if (!isScrolling) { cycleToken++; dispatchImageLoading(cycleToken); } }, { passive: true });
+        window.addEventListener("scroll", triggerViewportSync, { passive: true });
+        window.addEventListener("wheel", triggerViewportSync, { passive: true });
+        window.addEventListener("resize", triggerViewportSync, { passive: true });
+        window.addEventListener("keydown", handleNavigationKey, { passive: true });
         function formatNumber(num) {
             if (num === null || num === undefined || isNaN(num)) return "0";
             return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
         }
+        function buildTopUsersPopoverHtml(users) {
+            if (!users || users.length === 0) return "";
+            return "<div class=\"top-users-popover text-left\"><div class=\"text-[10px] uppercase font-bold text-purple-400 border-b border-gray-700 pb-1 mb-1.5\">Top users</div><div class=\"space-y-1\">" +
+                users.map((u, i) => "<div class=\"text-xs flex justify-between items-center text-gray-300 gap-2\"><span class=\"flex items-center gap-1.5 min-w-0\"><span class=\"w-5 text-right font-mono text-gray-500 shrink-0\">" + (i + 1) + ".</span><span class=\"truncate\">" + escapeHtml(u.username) + "</span>" + (u.isBot ? "<span class=\"text-[9px] bg-purple-600/20 text-purple-300 px-1.5 py-0.5 rounded font-sans shrink-0\">bot</span>" : "") + "</span><span class=\"text-[10px] text-purple-300 font-mono shrink-0\">" + formatNumber(u.count) + "</span></div>").join("") +
+                "</div></div>";
+        }
+        function buildAliasPopoverHtml(item) {
+            if (!item || !item.aliases || item.aliases.length === 0) return "";
+            return "<div class=\"alias-popover text-left\"><div class=\"text-[10px] uppercase font-bold text-purple-400 border-b border-gray-700 pb-1 mb-1.5 flex justify-between items-center\"><span>Emote Aliases (" + item.allAliasObjs.length + ")</span><span class=\"font-mono text-purple-300\">" + formatNumber(item.totalAliasUses) + " uses</span></div><div class=\"space-y-1.5\">" +
+                item.allAliasObjs.map(alias => { const isCurrent = alias.name === item.name; return "<div class=\"text-xs flex items-center justify-between " + (isCurrent ? "text-white font-semibold" : "text-gray-300") + "\"><span class=\"flex items-center gap-1.5 min-w-0\"><span class=\"truncate pr-1\">" + escapeHtml(alias.name) + "</span>" + (isCurrent ? "<span class=\"text-[9px] bg-purple-600/20 text-purple-300 px-1.5 py-0.5 rounded font-sans shrink-0\">current</span>" : "") + "</span><span class=\"text-[10px] text-purple-300 font-mono shrink-0\">" + formatNumber(alias.count) + "</span></div>"; }).join("") +
+                "</div></div>";
+        }
+        window.populatePopoverOnHover = function(wrapper) {
+            if (!wrapper) return;
+            const key = wrapper.getAttribute("data-emote-key");
+            const emote = key ? renderedEmoteMap.get(key) : null;
+            if (wrapper.classList.contains("emote-card-wrapper")) {
+                if (emote && !wrapper.querySelector(".top-users-popover") && emote.computedTopUsers && emote.computedTopUsers.length > 0) {
+                    const html = buildTopUsersPopoverHtml(emote.computedTopUsers);
+                    if (html) wrapper.insertAdjacentHTML("afterbegin", html);
+                }
+            } else if (wrapper.classList.contains("alias-popover-wrapper")) {
+                if (emote && !wrapper.querySelector(".alias-popover")) {
+                    const html = buildAliasPopoverHtml(emote);
+                    if (html) wrapper.insertAdjacentHTML("beforeend", html);
+                }
+            } else if (wrapper.classList.contains("table-popover-wrapper")) {
+                if (emote && !wrapper.querySelector(".top-users-popover") && wrapper.querySelector("[data-top-users-host]") && emote.computedTopUsers && emote.computedTopUsers.length > 0) {
+                    const html = buildTopUsersPopoverHtml(emote.computedTopUsers);
+                    if (html) wrapper.insertAdjacentHTML("afterbegin", html);
+                }
+                const previewImg = wrapper.querySelector(".table-img-popover img[data-src]");
+                if (previewImg && previewImg.getAttribute("data-src")) {
+                    prioritizeTablePopoverImage(previewImg);
+                }
+            }
+        };
         window.adjustPopoverViewport = function(wrapper) {
             if (!wrapper) return;
+            window.populatePopoverOnHover(wrapper);
             const popover = wrapper.querySelector(".top-users-popover, .table-img-popover, .metric-info-popover, .alias-popover");
             if (!popover) return;
             const rect = wrapper.getBoundingClientRect();
@@ -425,15 +895,19 @@
             }
             document.getElementById("summaryPopularPct").textContent = formatNumber(coreEmotesCount) + " (" + coreEmotesPct + "%)";
         }
-        window.handleImgLoad = function(img) {
-            if (!img) return;
-            const container = img.closest(".emote-img-skeleton") || img.parentElement;
-            if (container) container.classList.remove("emote-img-skeleton");
-        };
+        window.handleImgLoad = function(img) { if (!img) return; setSkeletonLoadingState(img, false); img.classList.remove("opacity-0"); };
         window.handleImgError = function(img) {
             if (!img) return;
-            const container = img.closest(".emote-img-skeleton") || img.parentElement;
-            if (container) { container.classList.remove("emote-img-skeleton"); container.innerHTML = '<span class="text-xs text-gray-600">Failed</span>'; }
+            const popover = img.closest(".table-img-popover");
+            if (popover) {
+                popover.classList.remove("is-loading");
+                popover.classList.remove("is-loaded");
+                const loader = popover.querySelector(".table-popover-loader");
+                if (loader) { loader.innerHTML = '<span class="text-xs font-semibold text-red-400">Failed to load 4x</span>'; }
+                return;
+            }
+            const container = img.closest(".emote-img-box") || img.parentElement;
+            if (container) { container.classList.remove("is-loading"); container.classList.remove("is-loaded"); container.innerHTML = '<span class="text-xs text-gray-600">Failed</span>'; }
         };
         const aliasIconSvg = '<svg class="w-3.5 h-3.5 inline-block text-white hover:text-purple-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>';
         function renderEmotes() {
@@ -480,6 +954,8 @@
                 return 0;
             });
             updateSummaryStats(rawEmotesDataset);
+            renderedEmoteMap = new Map();
+            filtered.forEach((e, idx) => { renderedEmoteMap.set(idx + "_" + (e.emoteId || "") + "_" + e.name, e); });
             if (filtered.length === 0) {
                 if (gridViewContainer) gridViewContainer.classList.add("hidden");
                 if (tableViewContainer) tableViewContainer.classList.add("hidden");
@@ -492,17 +968,11 @@
                 if (gridViewContainer) gridViewContainer.classList.remove("hidden");
                 if (tableViewContainer) tableViewContainer.classList.add("hidden");
                 if (gridViewContainer) {
-                    gridViewContainer.innerHTML = filtered.map(e => {
-                        const topUsersHtml = e.computedTopUsers.length > 0 ? 
-                            "<div class=\"top-users-popover text-left\"><div class=\"text-[10px] uppercase font-bold text-purple-400 border-b border-gray-700 pb-1 mb-1.5\">Top users</div><div class=\"space-y-1\">" +
-                            e.computedTopUsers.map((u, i) => "<div class=\"text-xs flex justify-between items-center text-gray-300 gap-2\"><span class=\"flex items-center gap-1.5 min-w-0\"><span class=\"w-5 text-right font-mono text-gray-500 shrink-0\">" + (i + 1) + ".</span><span class=\"truncate\">" + escapeHtml(u.username) + "</span>" + (u.isBot ? "<span class=\"text-[9px] bg-purple-600/20 text-purple-300 px-1.5 py-0.5 rounded font-sans shrink-0\">bot</span>" : "") + "</span><span class=\"text-[10px] text-purple-300 font-mono shrink-0\">" + formatNumber(u.count) + "</span></div>").join("") +
-                            "</div></div>" : "";
-                        const aliasHtml = (e.aliases && e.aliases.length > 0) ? (
-                            "<div class=\"alias-popover-wrapper inline-block ml-1 align-middle\" onmouseenter=\"adjustPopoverViewport(this)\"><span class=\"cursor-pointer select-none\" title=\"Has " + e.aliases.length + " alias(es)\">" + aliasIconSvg + "</span><div class=\"alias-popover text-left\"><div class=\"text-[10px] uppercase font-bold text-purple-400 border-b border-gray-700 pb-1 mb-1.5 flex justify-between items-center\"><span>Emote Aliases (" + e.allAliasObjs.length + ")</span><span class=\"font-mono text-purple-300\">" + formatNumber(e.totalAliasUses) + " uses</span></div><div class=\"space-y-1.5\">" +
-                            e.allAliasObjs.map(alias => { const isCurrent = alias.name === e.name; return "<div class=\"text-xs flex items-center justify-between " + (isCurrent ? "text-white font-semibold" : "text-gray-300") + "\"><span class=\"flex items-center gap-1.5 min-w-0\"><span class=\"truncate pr-1\">" + escapeHtml(alias.name) + "</span>" + (isCurrent ? "<span class=\"text-[9px] bg-purple-600/20 text-purple-300 px-1.5 py-0.5 rounded font-sans shrink-0\">current</span>" : "") + "</span><span class=\"text-[10px] text-purple-300 font-mono shrink-0\">" + formatNumber(alias.count) + "</span></div>"; }).join("") +
-                            "</div></div></div>"
-                        ) : "";
-                        return "<div class=\"emote-card-wrapper\" onmouseenter=\"adjustPopoverViewport(this)\">" + topUsersHtml + "<div class=\"bg-darkcard border border-darkborder hover:border-purple-500 rounded-xl p-3 flex flex-col items-center text-center transition group\"><div class=\"h-16 w-full flex items-center justify-center mb-2 rounded-lg emote-img-skeleton overflow-hidden\">" + (e.imgUrl ? "<img data-src=\"" + e.imgUrl + "\" alt=\"" + escapeHtml(e.name) + "\" decoding=\"async\" class=\"max-h-14 max-w-full object-contain group-hover:scale-110 transition-transform\">" : "<span class=\"text-xs text-gray-600\">No Image</span>") + "</div><div class=\"flex items-center justify-center gap-1 max-w-full\"><a href=\"" + e.pageUrl + "\" target=\"_blank\" title=\"" + escapeHtml(e.name) + "\" class=\"font-semibold text-sm text-white hover:text-purple-400 truncate\">" + escapeHtml(e.name) + "</a>" + aliasHtml + "</div><span class=\"text-xs text-purple-400 font-bold mt-0.5\">" + formatNumber(e.count) + " uses</span><div class=\"text-[10px] text-gray-400 mt-1 space-y-0.5\"><div>Added: " + e.addedFormatted + "</div><div>Last Used: " + e.lastUsedFormatted + "</div></div></div></div>";
+                    gridViewContainer.innerHTML = filtered.map((e, idx) => {
+                        const key = idx + "_" + (e.emoteId || "") + "_" + e.name;
+                        const aliasTriggerHtml = (e.aliases && e.aliases.length > 0) ? "<div class=\"alias-popover-wrapper inline-block ml-1 align-middle\" data-emote-key=\"" + escapeHtml(key) + "\" onmouseenter=\"adjustPopoverViewport(this)\"><span class=\"cursor-pointer select-none\" title=\"Has " + e.aliases.length + " alias(es)\">" + aliasIconSvg + "</span></div>" : "";
+                        const skeletonHtml = "<div class=\"emote-skeleton-placeholder\"><span class=\"truncate\">" + escapeHtml(e.name) + "</span></div>";
+                        return "<div class=\"emote-card-wrapper\" data-emote-key=\"" + escapeHtml(key) + "\" onmouseenter=\"adjustPopoverViewport(this)\"><div class=\"bg-darkcard border border-darkborder hover:border-purple-500 rounded-xl p-3 flex flex-col items-center text-center transition group\"><div class=\"h-16 w-full flex items-center justify-center mb-2 rounded-lg emote-img-box overflow-hidden\">" + (e.imgUrl ? skeletonHtml + "<img data-src=\"" + e.imgUrl + "\" data-debug-idx=\"" + idx + "\" alt=\"" + escapeHtml(e.name) + "\" decoding=\"async\" class=\"relative z-[1] max-h-14 max-w-full object-contain\">" : "<span class=\"text-xs text-gray-600\">No Image</span>") + "</div><div class=\"flex items-center justify-center gap-1 max-w-full\"><a href=\"" + e.pageUrl + "\" target=\"_blank\" title=\"" + escapeHtml(e.name) + "\" class=\"font-semibold text-sm text-white hover:text-purple-400 truncate\">" + escapeHtml(e.name) + "</a>" + aliasTriggerHtml + "</div><span class=\"text-xs text-purple-400 font-bold mt-0.5\">" + formatNumber(e.count) + " uses</span><div class=\"text-[10px] text-gray-400 mt-1 space-y-0.5\"><div>Added: " + e.addedFormatted + "</div><div>Last Used: " + e.lastUsedFormatted + "</div></div></div></div>";
                     }).join("");
                     enqueueImages(gridViewContainer.querySelectorAll("img[data-src]"));
                 }
@@ -510,19 +980,14 @@
                 if (gridViewContainer) gridViewContainer.classList.add("hidden");
                 if (tableViewContainer) tableViewContainer.classList.remove("hidden");
                 if (tableBody) {
-                    tableBody.innerHTML = filtered.map(e => {
-                        const topUsersPopoverHtml = (e.computedTopUsers && e.computedTopUsers.length > 0) ? 
-                            "<div class=\"top-users-popover text-left\"><div class=\"text-[10px] uppercase font-bold text-purple-400 border-b border-gray-700 pb-1 mb-1.5\">Top users</div><div class=\"space-y-1\">" +
-                            e.computedTopUsers.map((u, i) => "<div class=\"text-xs flex justify-between items-center text-gray-300 gap-2\"><span class=\"flex items-center gap-1.5 min-w-0\"><span class=\"w-5 text-right font-mono text-gray-500 shrink-0\">" + (i + 1) + ".</span><span class=\"truncate\">" + escapeHtml(u.username) + "</span>" + (u.isBot ? "<span class=\"text-[9px] bg-purple-600/20 text-purple-300 px-1.5 py-0.5 rounded font-sans shrink-0\">bot</span>" : "") + "</span><span class=\"text-[10px] text-purple-300 font-mono shrink-0\">" + formatNumber(u.count) + "</span></div>").join("") +
-                            "</div></div>" : "";
-                        const aliasHtml = (e.aliases && e.aliases.length > 0) ? (
-                            "<div class=\"alias-popover-wrapper inline-block ml-1 align-middle\" onmouseenter=\"adjustPopoverViewport(this)\"><span class=\"cursor-pointer select-none\" title=\"Has " + e.aliases.length + " alias(es)\">" + aliasIconSvg + "</span><div class=\"alias-popover text-left\"><div class=\"text-[10px] uppercase font-bold text-purple-400 border-b border-gray-700 pb-1 mb-1.5 flex justify-between items-center\"><span>Emote Aliases (" + e.allAliasObjs.length + ")</span><span class=\"font-mono text-purple-300\">" + formatNumber(e.totalAliasUses) + " uses</span></div><div class=\"space-y-1.5\">" +
-                            e.allAliasObjs.map(alias => { const isCurrent = alias.name === e.name; return "<div class=\"text-xs flex items-center justify-between " + (isCurrent ? "text-white font-semibold" : "text-gray-300") + "\"><span class=\"flex items-center gap-1.5 min-w-0\"><span class=\"truncate pr-1\">" + escapeHtml(alias.name) + "</span>" + (isCurrent ? "<span class=\"text-[9px] bg-purple-600/20 text-purple-300 px-1.5 py-0.5 rounded font-sans shrink-0\">current</span>" : "") + "</span><span class=\"text-[10px] text-purple-300 font-mono shrink-0\">" + formatNumber(alias.count) + "</span></div>"; }).join("") +
-                            "</div></div></div>"
-                        ) : "";
-                        const img4xPopoverHtml = e.img4xUrl ? "<div class=\"table-img-popover\"><img data-src=\"" + e.img4xUrl + "\" alt=\"" + escapeHtml(e.name) + "\" decoding=\"async\" class=\"max-h-28 max-w-full object-contain\"></div>" : "";
+                    tableBody.innerHTML = filtered.map((e, idx) => {
+                        const key = idx + "_" + (e.emoteId || "") + "_" + e.name;
+                        const aliasTriggerHtml = (e.aliases && e.aliases.length > 0) ? "<div class=\"alias-popover-wrapper inline-block ml-1 align-middle shrink-0\" data-emote-key=\"" + escapeHtml(key) + "\" onmouseenter=\"adjustPopoverViewport(this)\"><span class=\"cursor-pointer select-none\" title=\"Has " + e.aliases.length + " alias(es)\">" + aliasIconSvg + "</span></div>" : "";
+                        const img4xPopoverHtml = e.img4xUrl ? "<div class=\"table-img-popover\"><div class=\"table-popover-loader\"><div class=\"table-popover-spinner\"></div><span class=\"text-xs font-semibold text-white truncate max-w-full\">" + escapeHtml(e.name) + "</span><span data-popover-status class=\"text-[11px] text-purple-300\">Loading 4x preview...</span></div><img data-src=\"" + e.img4xUrl + "\" alt=\"" + escapeHtml(e.name) + "\" decoding=\"async\" class=\"relative z-[1] max-h-28 max-w-full object-contain\"></div>" : "";
+                        const tableThumbUrl = e.img1xUrl || (e.emoteId ? "https://cdn.7tv.app/emote/" + e.emoteId + "/1x.webp" : "");
+                        const skeletonHtml = "<div class=\"emote-skeleton-placeholder\"><span class=\"truncate\">" + escapeHtml(e.name) + "</span></div>";
                         const topUsersSummary = e.computedTopUsers.map(u => u.username + (u.isBot ? " [bot]" : "") + " (" + formatNumber(u.count) + ")").join(", ");
-                        return "<tr class=\"hover:bg-darkbg/50 transition\"><td class=\"p-3\"><div class=\"table-popover-wrapper inline-block\" onmouseenter=\"adjustPopoverViewport(this)\">" + img4xPopoverHtml + (e.imgUrl ? "<img data-src=\"" + e.imgUrl + "\" alt=\"" + escapeHtml(e.name) + "\" decoding=\"async\" class=\"w-8 h-8 object-contain cursor-pointer\">" : "-") + "</div></td><td class=\"p-3 font-semibold text-white w-48 overflow-visible\"><div class=\"flex items-center gap-1\"><span class=\"truncate\" title=\"" + escapeHtml(e.name) + "\">" + escapeHtml(e.name) + "</span>" + aliasHtml + "</div></td><td class=\"p-3 font-bold text-purple-400\">" + formatNumber(e.count) + "</td><td class=\"p-3 text-xs text-gray-400\">" + e.addedFormatted + "</td><td class=\"p-3 text-xs text-gray-400\">" + e.lastUsedFormatted + "</td><td class=\"p-3 text-xs text-gray-300 relative\">" + (topUsersSummary ? "<div class=\"table-popover-wrapper relative inline-block w-full\" onmouseenter=\"adjustPopoverViewport(this)\">" + topUsersPopoverHtml + "<div class=\"truncate cursor-pointer text-purple-300 underline decoration-dashed decoration-gray-600 underline-offset-4 w-full\">" + escapeHtml(topUsersSummary) + "</div></div>" : "-") + "</td><td class=\"p-3\">" + (e.pageUrl !== "#" ? "<a href=\"" + e.pageUrl + "\" target=\"_blank\" class=\"text-xs text-purple-400 hover:underline\">7TV Page</a>" : "-") + "</td></tr>";
+                        return "<tr class=\"hover:bg-darkbg/50 transition\"><td class=\"p-3\"><div class=\"table-popover-wrapper\" data-emote-key=\"" + escapeHtml(key) + "\" onmouseenter=\"adjustPopoverViewport(this)\">" + img4xPopoverHtml + "<div class=\"h-10 w-14 shrink-0 flex items-center justify-center rounded-lg emote-img-box overflow-hidden\">" + (tableThumbUrl ? skeletonHtml + "<img data-src=\"" + tableThumbUrl + "\" data-debug-idx=\"" + idx + "\" alt=\"" + escapeHtml(e.name) + "\" decoding=\"sync\" class=\"relative z-[1] max-w-8 max-h-8 w-auto h-auto shrink-0 block object-contain cursor-pointer\">" : "-") + "</div></div></td><td class=\"p-3 font-semibold text-white overflow-visible\"><div class=\"flex items-center gap-1 min-w-0\"><span class=\"truncate\" title=\"" + escapeHtml(e.name) + "\">" + escapeHtml(e.name) + "</span>" + aliasTriggerHtml + "</div></td><td class=\"p-3 font-bold text-purple-400 whitespace-nowrap\">" + formatNumber(e.count) + "</td><td class=\"p-3 text-xs text-gray-400 whitespace-nowrap\">" + e.addedFormatted + "</td><td class=\"p-3 text-xs text-gray-400 whitespace-nowrap\">" + e.lastUsedFormatted + "</td><td class=\"p-3 text-xs text-gray-300 relative\">" + (topUsersSummary ? "<div class=\"table-popover-wrapper relative block w-full min-w-0\" data-top-users-cell=\"1\" data-emote-key=\"" + escapeHtml(key) + "\" onmouseenter=\"adjustPopoverViewport(this)\"><div data-top-users-host=\"1\" class=\"truncate cursor-pointer text-purple-300 underline decoration-dashed decoration-gray-600 underline-offset-4 block w-full\">" + escapeHtml(topUsersSummary) + "</div></div>" : "-") + "</td><td class=\"p-3 whitespace-nowrap\">" + (e.pageUrl !== "#" ? "<a href=\"" + e.pageUrl + "\" target=\"_blank\" class=\"text-xs text-purple-400 hover:underline\">7TV Page</a>" : "-") + "</td></tr>";
                     }).join("");
                     enqueueImages(tableViewContainer.querySelectorAll("img[data-src]"));
                 }
@@ -534,9 +999,9 @@
         [chkIncludeOffline, chkIncludeBots, chkIncludeDuplicates].forEach(chk => { if (chk) chk.addEventListener("change", renderEmotes); });
         if (searchInput) searchInput.addEventListener("input", renderEmotes);
         if (sortSelect) sortSelect.addEventListener("change", renderEmotes);
-        if (viewGridBtn) { viewGridBtn.addEventListener("click", () => { currentView = "grid"; viewGridBtn.classList.replace("text-gray-400", "text-white"); viewGridBtn.classList.add("bg-purple-600"); if (viewTableBtn) { viewTableBtn.classList.replace("text-white", "text-gray-400"); viewTableBtn.classList.remove("bg-purple-600"); } renderEmotes(); }); }
-        if (viewTableBtn) { viewTableBtn.addEventListener("click", () => { currentView = "table"; viewTableBtn.classList.replace("text-gray-400", "text-white"); viewTableBtn.classList.add("bg-purple-600"); if (viewGridBtn) { viewGridBtn.classList.replace("text-white", "text-gray-400"); viewGridBtn.classList.remove("bg-purple-600"); } renderEmotes(); }); }
-        document.addEventListener("DOMContentLoaded", () => { renderEmotes(); });
+        if (viewGridBtn) { viewGridBtn.addEventListener("click", () => { cancelAllInFlightRequests(); currentView = "grid"; viewGridBtn.classList.replace("text-gray-400", "text-white"); viewGridBtn.classList.add("bg-purple-600"); if (viewTableBtn) { viewTableBtn.classList.replace("text-white", "text-gray-400"); viewTableBtn.classList.remove("bg-purple-600"); } renderEmotes(); }); }
+        if (viewTableBtn) { viewTableBtn.addEventListener("click", () => { cancelAllInFlightRequests(); currentView = "table"; viewTableBtn.classList.replace("text-gray-400", "text-white"); viewTableBtn.classList.add("bg-purple-600"); if (viewGridBtn) { viewGridBtn.classList.replace("text-white", "text-gray-400"); viewGridBtn.classList.remove("bg-purple-600"); } renderEmotes(); }); }
+        document.addEventListener("DOMContentLoaded", () => { renderEmotes(); if (DEBUG_OVERLAY_ENABLED) { updateDebugOverlay(); syncDebugGridScrollWithPage(true); } });
     </script>
 </body>
 </html>
