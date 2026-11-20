@@ -114,7 +114,7 @@
             <div class="bg-darkcard border border-darkborder rounded-xl p-4 space-y-4">
                 <div class="flex flex-wrap gap-4 items-center justify-between">
                     <div class="flex-1 min-w-[200px]">
-                        <input type="text" id="searchInput" placeholder="Search emote by name, ID, or 7TV URL..." class="w-full bg-darkbg border border-darkborder rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500 transition">
+                        <input type="text" id="searchInput" placeholder="Search emote by name, full 7TV ID, or 7TV link..." class="w-full bg-darkbg border border-darkborder rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500 transition">
                     </div>
                     <div class="flex items-center gap-2">
                         <label class="text-xs text-gray-400 uppercase font-semibold">Sort:</label>
@@ -194,6 +194,9 @@
         const DEBUG_OVERLAY_ENABLED = false;
         let currentView = "grid";
         let renderedEmoteMap = new Map();
+        let gridCardPool = new Map();
+        let tableRowPool = new Map();
+        let loadedImageUrls = new Set();
         let emoteLoadStates = new Map();
         let visibleEmoteIndices = new Set();
         const IMAGE_LOAD_TIMEOUT_MS = 6000;
@@ -207,9 +210,24 @@
         const TABLE_PRELOAD_MULTIPLIER = 2;
         const MAX_CONCURRENT_PRELOAD_TASKS = 5;
         const NAV_KEYS = new Set(["PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "]);
+        function parse7tvFilterQuery(rawQuery) {
+            const cleaned = String(rawQuery || "").trim();
+            if (!cleaned) return { mode: "none", exactId: "", nameQuery: "" };
+            const linkMatch = cleaned.match(/^(?:https?:\/\/)?(?:www\.)?7tv\.app\/emotes\/([a-zA-Z0-9_-]+)[/?#]?.*$/i);
+            if (linkMatch) return { mode: "exact-id", exactId: linkMatch[1].toLowerCase(), nameQuery: "" };
+            if (/^[a-zA-Z0-9_-]{20,}$/.test(cleaned)) return { mode: "exact-id", exactId: cleaned.toLowerCase(), nameQuery: "" };
+            return { mode: "name", exactId: "", nameQuery: cleaned.toLowerCase() };
+        }
         function getPreloadPageDepth() { return currentView === "table" ? PRELOAD_PAGE_DEPTH * TABLE_PRELOAD_MULTIPLIER : PRELOAD_PAGE_DEPTH; }
         function getMaxConcurrentPreloadTasks() { return currentView === "table" ? MAX_CONCURRENT_PRELOAD_TASKS * TABLE_PRELOAD_MULTIPLIER : MAX_CONCURRENT_PRELOAD_TASKS; }
         function isTable1xImage(img, srcUrl) { if (currentView === "table" && !img.closest(".table-img-popover")) return true; return typeof srcUrl === "string" && /\/1x\.webp(?:\?|$)/i.test(srcUrl); }
+        function isImageAlreadyCached(img, srcUrl) {
+            if (!srcUrl) return false;
+            if (loadedImageUrls.has(srcUrl)) return true;
+            if (img && img.currentSrc === srcUrl && img.complete && img.naturalWidth > 0) return true;
+            if (img && img.src === srcUrl && img.complete && img.naturalWidth > 0) return true;
+            return false;
+        }
         let viewportQueue = [];
         let inFlightImages = new Set();
         let preloadPromotedImages = new Set();
@@ -257,6 +275,8 @@
         }
         function resetSkeletonToIdle(img) {
             if (!img) return;
+            const srcUrl = img.getAttribute("data-src") || img.getAttribute("src") || "";
+            if (srcUrl && isImageAlreadyCached(img, srcUrl)) { setSkeletonLoadingState(img, false); return; }
             const popover = img.closest(".table-img-popover");
             if (popover) {
                 popover.classList.remove("is-loading");
@@ -537,11 +557,19 @@
             preloadPromotedImages.delete(img);
             priorityImages.delete(img);
             if (restorePending && img && img.isConnected && srcUrl) {
-                img.removeAttribute("src");
-                img.setAttribute("data-src", srcUrl);
-                resetSkeletonToIdle(img);
-                setEmoteDebugState(img, "idle");
-                if (!img.closest(".table-img-popover") && viewportQueue.indexOf(img) === -1) viewportQueue.push(img);
+                if (!isImageAlreadyCached(img, srcUrl)) {
+                    img.removeAttribute("src");
+                    img.setAttribute("data-src", srcUrl);
+                    resetSkeletonToIdle(img);
+                    setEmoteDebugState(img, "idle");
+                    if (!img.closest(".table-img-popover") && viewportQueue.indexOf(img) === -1) viewportQueue.push(img);
+                } else {
+                    loadedImageUrls.add(srcUrl);
+                    img.removeAttribute("data-src");
+                    setSkeletonLoadingState(img, false);
+                    setEmoteDebugState(img, "loaded");
+                    window.handleImgLoad(img);
+                }
             }
         }
         function cancelOffscreenInFlightImages() {
@@ -556,34 +584,20 @@
             });
             scheduleDebugUpdate();
         }
-        function clearAllInFlightImages() {
-            Array.from(inFlightImages).forEach(entry => {
-                abortSingleInFlightEntry(entry, false);
-            });
-            inFlightImages.clear();
-            preloadPromotedImages.clear();
-            priorityImages.clear();
-            scheduleDebugUpdate();
-        }
-        function cancelAllInFlightRequests() {
-            clearInitialLoadTimer();
-            clearPreloadSchedule(true);
-            if (settleTimer) { clearTimeout(settleTimer); settleTimer = null; }
-            if (rafId && typeof window.cancelAnimationFrame === "function") { window.cancelAnimationFrame(rafId); rafId = null; }
-            Array.from(inFlightImages).forEach(entry => {
-                abortSingleInFlightEntry(entry, true);
-            });
-            inFlightImages.clear();
-            preloadPromotedImages.clear();
-            priorityImages.clear();
-            viewportQueue = [];
-            scheduleDebugUpdate();
-        }
         function startViewportImage(img, isPriority) {
             if (!img || !img.isConnected) return;
             const srcUrl = img.getAttribute("data-src");
-            if (!srcUrl) return;
+            if (!srcUrl) {
+                if (img.getAttribute("src") && img.complete && img.naturalWidth > 0) {
+                    loadedImageUrls.add(img.currentSrc || img.src);
+                    setSkeletonLoadingState(img, false);
+                    setEmoteDebugState(img, "loaded");
+                    window.handleImgLoad(img);
+                }
+                return;
+            }
             for (const entry of inFlightImages) { if (entry.img === img) return; }
+            const alreadyCached = isImageAlreadyCached(img, srcUrl);
             const fast1x = isTable1xImage(img, srcUrl);
             const maxSettleMs = fast1x ? TABLE_1X_SETTLE_MAX_MS : ANIM_SETTLE_MAX_MS;
             const minSettleMs = fast1x ? 120 : 300;
@@ -592,21 +606,18 @@
             img.removeAttribute("data-src");
             img.decoding = fast1x ? "sync" : "async";
             if (isPriority && "fetchPriority" in img) { try { img.fetchPriority = "high"; } catch (e) {} }
-            setSkeletonLoadingState(img, true);
-            setEmoteDebugState(img, "loading");
             let done = false, entryRef = null;
             const finish = (failed) => {
                 if (done) return; done = true;
                 if (entryRef) { clearTimeout(entryRef.timerId); if (entryRef.decodeGuardId) clearTimeout(entryRef.decodeGuardId); if (entryRef.frameRafId && typeof window.cancelAnimationFrame === "function") window.cancelAnimationFrame(entryRef.frameRafId); img.removeEventListener("load", onLoad); img.removeEventListener("error", onError); inFlightImages.delete(entryRef); }
                 preloadPromotedImages.delete(img);
                 priorityImages.delete(img);
-                setEmoteDebugState(img, "loaded");
-                if (failed) window.handleImgError(img); else { setSkeletonLoadingState(img, false); window.handleImgLoad(img); }
+                if (failed) { setEmoteDebugState(img, "loaded"); window.handleImgError(img); } else { loadedImageUrls.add(srcUrl); setSkeletonLoadingState(img, false); setEmoteDebugState(img, "loaded"); window.handleImgLoad(img); }
                 scheduleNextPreloadStep();
             };
             const waitFullDecodeAndFrames = () => {
                 if (done || !entryRef || !inFlightImages.has(entryRef)) return;
-                if (fast1x) { finish(false); return; }
+                if (fast1x || alreadyCached) { finish(false); return; }
                 const afterDecode = () => {
                     if (done || !entryRef || !inFlightImages.has(entryRef)) return;
                     if (typeof window.requestAnimationFrame === "function") {
@@ -644,15 +655,38 @@
             const timerId = setTimeout(() => finish(false), IMAGE_LOAD_TIMEOUT_MS);
             entryRef = { img, onLoad, onError, timerId, decodeGuardId: null, frameRafId: null, srcUrl };
             inFlightImages.add(entryRef);
-            scheduleDebugUpdate();
             img.addEventListener("load", onLoad, { once: true });
             img.addEventListener("error", onError, { once: true });
-            img.src = srcUrl;
+            if (img.getAttribute("src") !== srcUrl) img.src = srcUrl;
+            if (img.complete && img.naturalWidth > 0) {
+                loadedImageUrls.add(srcUrl);
+                setSkeletonLoadingState(img, false);
+                setEmoteDebugState(img, "loaded");
+                finish(false);
+                return;
+            }
+            if (!loadedImageUrls.has(srcUrl)) {
+                setSkeletonLoadingState(img, true);
+                setEmoteDebugState(img, "loading");
+            } else {
+                setSkeletonLoadingState(img, false);
+                setEmoteDebugState(img, "loaded");
+            }
+            scheduleDebugUpdate();
         }
         function prioritizeTablePopoverImage(previewImg) {
             if (!previewImg || !previewImg.isConnected) return;
-            const srcUrl = previewImg.getAttribute("data-src");
+            const srcUrl = previewImg.getAttribute("data-src") || previewImg.getAttribute("src") || "";
             if (!srcUrl) return;
+            if (isImageAlreadyCached(previewImg, srcUrl)) {
+                loadedImageUrls.add(srcUrl);
+                previewImg.removeAttribute("data-src");
+                if (!previewImg.getAttribute("src")) previewImg.src = srcUrl;
+                setSkeletonLoadingState(previewImg, false);
+                window.handleImgLoad(previewImg);
+                return;
+            }
+            if (!previewImg.getAttribute("data-src")) return;
             clearPreloadSchedule(true);
             Array.from(inFlightImages).forEach(entry => {
                 const { img } = entry;
@@ -670,6 +704,15 @@
                 if (!img || !img.isConnected) continue;
                 const srcUrl = img.getAttribute("data-src");
                 if (!srcUrl) continue;
+                if (isImageAlreadyCached(img, srcUrl)) {
+                    loadedImageUrls.add(srcUrl);
+                    img.removeAttribute("data-src");
+                    if (!img.getAttribute("src")) img.src = srcUrl;
+                    setSkeletonLoadingState(img, false);
+                    setEmoteDebugState(img, "loaded");
+                    window.handleImgLoad(img);
+                    continue;
+                }
                 if (isStrictlyInViewport(img)) visibleCandidates.push(img);
                 else offscreenQueue.push(img);
             }
@@ -723,18 +766,34 @@
             clearPreloadSchedule(true);
             if (settleTimer) { clearTimeout(settleTimer); settleTimer = null; }
             if (rafId && typeof window.cancelAnimationFrame === "function") { window.cancelAnimationFrame(rafId); rafId = null; }
-            clearAllInFlightImages();
-            viewportQueue = [];
+            const pendingSet = new Set();
             emoteLoadStates = new Map();
             Array.from(imgElements || []).forEach((img, i) => {
-                if (img && img.getAttribute("data-src") && !img.closest(".table-img-popover")) {
-                    const idxAttr = img.getAttribute("data-debug-idx");
-                    const dIdx = idxAttr !== null ? parseInt(idxAttr, 10) : i;
-                    img.setAttribute("data-debug-idx", String(dIdx));
-                    emoteLoadStates.set(dIdx, "idle");
-                    viewportQueue.push(img);
+                if (!img || img.closest(".table-img-popover")) return;
+                const idxAttr = img.getAttribute("data-debug-idx");
+                const dIdx = idxAttr !== null ? parseInt(idxAttr, 10) : i;
+                img.setAttribute("data-debug-idx", String(dIdx));
+                const srcUrl = img.getAttribute("data-src") || img.getAttribute("src") || "";
+                if (!srcUrl) return;
+                if (isImageAlreadyCached(img, srcUrl)) {
+                    loadedImageUrls.add(srcUrl);
+                    img.removeAttribute("data-src");
+                    if (!img.getAttribute("src")) img.src = srcUrl;
+                    setSkeletonLoadingState(img, false);
+                    emoteLoadStates.set(dIdx, "loaded");
+                    window.handleImgLoad(img);
+                    return;
                 }
+                emoteLoadStates.set(dIdx, "idle");
+                if (img.getAttribute("data-src")) pendingSet.add(img);
             });
+            Array.from(inFlightImages).forEach(entry => {
+                const { img } = entry;
+                if (!img || !img.isConnected) { abortSingleInFlightEntry(entry, false); return; }
+                if (img.closest(".table-img-popover")) return;
+                if (!pendingSet.has(img) && !isImageAlreadyCached(img, entry.srcUrl)) abortSingleInFlightEntry(entry, false);
+            });
+            viewportQueue = Array.from(pendingSet);
             scheduleDebugUpdate();
             if (viewportQueue.length > 0) {
                 scheduleInitialImageLoad();
@@ -765,24 +824,30 @@
             const key = wrapper.getAttribute("data-emote-key");
             const emote = key ? renderedEmoteMap.get(key) : null;
             if (wrapper.classList.contains("emote-card-wrapper")) {
-                if (emote && !wrapper.querySelector(".top-users-popover") && emote.computedTopUsers && emote.computedTopUsers.length > 0) {
+                const existing = wrapper.querySelector(".top-users-popover");
+                if (existing) existing.remove();
+                if (emote && emote.computedTopUsers && emote.computedTopUsers.length > 0) {
                     const html = buildTopUsersPopoverHtml(emote.computedTopUsers);
                     if (html) wrapper.insertAdjacentHTML("afterbegin", html);
                 }
             } else if (wrapper.classList.contains("alias-popover-wrapper")) {
-                if (emote && !wrapper.querySelector(".alias-popover")) {
+                const existing = wrapper.querySelector(".alias-popover");
+                if (existing) existing.remove();
+                if (emote) {
                     const html = buildAliasPopoverHtml(emote);
                     if (html) wrapper.insertAdjacentHTML("beforeend", html);
                 }
             } else if (wrapper.classList.contains("table-popover-wrapper")) {
-                if (emote && !wrapper.querySelector(".top-users-popover") && wrapper.querySelector("[data-top-users-host]") && emote.computedTopUsers && emote.computedTopUsers.length > 0) {
-                    const html = buildTopUsersPopoverHtml(emote.computedTopUsers);
-                    if (html) wrapper.insertAdjacentHTML("afterbegin", html);
+                if (wrapper.querySelector("[data-top-users-host]")) {
+                    const existing = wrapper.querySelector(".top-users-popover");
+                    if (existing) existing.remove();
+                    if (emote && emote.computedTopUsers && emote.computedTopUsers.length > 0) {
+                        const html = buildTopUsersPopoverHtml(emote.computedTopUsers);
+                        if (html) wrapper.insertAdjacentHTML("afterbegin", html);
+                    }
                 }
-                const previewImg = wrapper.querySelector(".table-img-popover img[data-src]");
-                if (previewImg && previewImg.getAttribute("data-src")) {
-                    prioritizeTablePopoverImage(previewImg);
-                }
+                const previewImg = wrapper.querySelector(".table-img-popover img");
+                if (previewImg) prioritizeTablePopoverImage(previewImg);
             }
         };
         window.adjustPopoverViewport = function(wrapper) {
@@ -895,7 +960,7 @@
             }
             document.getElementById("summaryPopularPct").textContent = formatNumber(coreEmotesCount) + " (" + coreEmotesPct + "%)";
         }
-        window.handleImgLoad = function(img) { if (!img) return; setSkeletonLoadingState(img, false); img.classList.remove("opacity-0"); };
+        window.handleImgLoad = function(img) { if (!img) return; const loadedSrc = img.currentSrc || img.src || img.getAttribute("data-src") || ""; if (loadedSrc) loadedImageUrls.add(loadedSrc); setSkeletonLoadingState(img, false); img.classList.remove("opacity-0"); };
         window.handleImgError = function(img) {
             if (!img) return;
             const popover = img.closest(".table-img-popover");
@@ -910,12 +975,143 @@
             if (container) { container.classList.remove("is-loading"); container.classList.remove("is-loaded"); container.innerHTML = '<span class="text-xs text-gray-600">Failed</span>'; }
         };
         const aliasIconSvg = '<svg class="w-3.5 h-3.5 inline-block text-white hover:text-purple-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>';
+        function getEmoteIdentityKey(e) { return (e.emoteId || "") + "__" + (e.name || "Unknown"); }
+        function takePooledNode(poolMap, idKey) { const list = poolMap.get(idKey); if (!list || list.length === 0) return null; return list.shift(); }
+        function releasePooledNode(poolMap, idKey, node) { if (!node || !idKey) return; let list = poolMap.get(idKey); if (!list) { list = []; poolMap.set(idKey, list); } if (list.indexOf(node) === -1) list.push(node); }
+        function syncEmoteImageSlot(imgBox, expectedUrl, altName, decodingMode, debugIdx) {
+            if (!imgBox) return null;
+            const existingImg = imgBox.querySelector("img");
+            if (!expectedUrl) {
+                if (existingImg) existingImg.remove();
+                imgBox.classList.remove("is-loading", "is-loaded");
+                const skel = imgBox.querySelector(".emote-skeleton-placeholder");
+                if (skel) skel.remove();
+                if (!imgBox.querySelector(".no-img-label")) imgBox.insertAdjacentHTML("beforeend", '<span class="no-img-label text-xs text-gray-600">No Image</span>');
+                return null;
+            }
+            const noImg = imgBox.querySelector(".no-img-label");
+            if (noImg) noImg.remove();
+            let skel = imgBox.querySelector(".emote-skeleton-placeholder");
+            if (!skel) { imgBox.insertAdjacentHTML("afterbegin", '<div class="emote-skeleton-placeholder"><span class="truncate">' + escapeHtml(altName) + '</span></div>'); skel = imgBox.querySelector(".emote-skeleton-placeholder"); }
+            else { const span = skel.querySelector("span"); if (span) span.textContent = altName; }
+            if (existingImg) {
+                existingImg.alt = altName;
+                existingImg.decoding = decodingMode;
+                existingImg.setAttribute("data-debug-idx", String(debugIdx));
+                const currentActiveSrc = existingImg.currentSrc || existingImg.getAttribute("src") || "";
+                const currentDataSrc = existingImg.getAttribute("data-src") || "";
+                if (currentActiveSrc === expectedUrl && existingImg.complete && existingImg.naturalWidth > 0) {
+                    loadedImageUrls.add(expectedUrl);
+                    existingImg.removeAttribute("data-src");
+                    setSkeletonLoadingState(existingImg, false);
+                    return existingImg;
+                }
+                if (currentActiveSrc !== expectedUrl && currentDataSrc !== expectedUrl) {
+                    if (isImageAlreadyCached(existingImg, expectedUrl)) {
+                        loadedImageUrls.add(expectedUrl);
+                        existingImg.removeAttribute("data-src");
+                        existingImg.src = expectedUrl;
+                        setSkeletonLoadingState(existingImg, false);
+                    } else {
+                        existingImg.removeAttribute("src");
+                        existingImg.setAttribute("data-src", expectedUrl);
+                        resetSkeletonToIdle(existingImg);
+                    }
+                }
+                return existingImg;
+            }
+            const imgEl = document.createElement("img");
+            imgEl.alt = altName;
+            imgEl.decoding = decodingMode;
+            imgEl.setAttribute("data-debug-idx", String(debugIdx));
+            imgEl.className = decodingMode === "sync" ? "relative z-[1] max-w-8 max-h-8 w-auto h-auto shrink-0 block object-contain cursor-pointer" : "relative z-[1] max-h-14 max-w-full object-contain";
+            if (isImageAlreadyCached(imgEl, expectedUrl)) {
+                loadedImageUrls.add(expectedUrl);
+                imgEl.src = expectedUrl;
+                imgBox.appendChild(imgEl);
+                setSkeletonLoadingState(imgEl, false);
+            } else {
+                imgEl.setAttribute("data-src", expectedUrl);
+                imgBox.appendChild(imgEl);
+                resetSkeletonToIdle(imgEl);
+            }
+            return imgEl;
+        }
+        function createOrUpdateGridCard(e, renderKey, idKey, idx) {
+            let wrapper = takePooledNode(gridCardPool, idKey);
+            const aliasHtml = (e.aliases && e.aliases.length > 0) ? '<div class="alias-popover-wrapper inline-block ml-1 align-middle" data-emote-key="' + escapeHtml(renderKey) + '" onmouseenter="adjustPopoverViewport(this)"><span class="cursor-pointer select-none" title="Has ' + e.aliases.length + ' alias(es)">' + aliasIconSvg + '</span></div>' : "";
+            if (!wrapper) {
+                wrapper = document.createElement("div");
+                wrapper.className = "emote-card-wrapper";
+                wrapper.setAttribute("onmouseenter", "adjustPopoverViewport(this)");
+                wrapper.innerHTML = '<div class="bg-darkcard border border-darkborder hover:border-purple-500 rounded-xl p-3 flex flex-col items-center text-center transition group"><div class="h-16 w-full flex items-center justify-center mb-2 rounded-lg emote-img-box overflow-hidden"></div><div class="flex items-center justify-center gap-1 max-w-full" data-card-title-row></div><span data-card-uses class="text-xs text-purple-400 font-bold mt-0.5"></span><div class="text-[10px] text-gray-400 mt-1 space-y-0.5" data-card-dates><div data-card-added></div><div data-card-lastused></div></div></div>';
+            }
+            wrapper.setAttribute("data-emote-key", renderKey);
+            const oldPop = wrapper.querySelector(".top-users-popover");
+            if (oldPop) oldPop.remove();
+            syncEmoteImageSlot(wrapper.querySelector(".emote-img-box"), e.imgUrl, e.name, "async", idx);
+            const titleRow = wrapper.querySelector("[data-card-title-row]");
+            if (titleRow) titleRow.innerHTML = '<a href="' + e.pageUrl + '" target="_blank" title="' + escapeHtml(e.name) + '" class="font-semibold text-sm text-white hover:text-purple-400 truncate">' + escapeHtml(e.name) + '</a>' + aliasHtml;
+            const usesEl = wrapper.querySelector("[data-card-uses]");
+            if (usesEl) usesEl.textContent = formatNumber(e.count) + " uses";
+            const addedEl = wrapper.querySelector("[data-card-added]");
+            if (addedEl) addedEl.textContent = "Added: " + e.addedFormatted;
+            const lastUsedEl = wrapper.querySelector("[data-card-lastused]");
+            if (lastUsedEl) lastUsedEl.textContent = "Last Used: " + e.lastUsedFormatted;
+            return wrapper;
+        }
+        function createOrUpdateTableRow(e, renderKey, idKey, idx) {
+            let tr = takePooledNode(tableRowPool, idKey);
+            const aliasHtml = (e.aliases && e.aliases.length > 0) ? '<div class="alias-popover-wrapper inline-block ml-1 align-middle shrink-0" data-emote-key="' + escapeHtml(renderKey) + '" onmouseenter="adjustPopoverViewport(this)"><span class="cursor-pointer select-none" title="Has ' + e.aliases.length + ' alias(es)">' + aliasIconSvg + '</span></div>' : "";
+            const tableThumbUrl = e.img1xUrl || (e.emoteId ? "https://cdn.7tv.app/emote/" + e.emoteId + "/1x.webp" : "");
+            const topUsersSummary = e.computedTopUsers.map(u => u.username + (u.isBot ? " [bot]" : "") + " (" + formatNumber(u.count) + ")").join(", ");
+            if (!tr) {
+                tr = document.createElement("tr");
+                tr.className = "hover:bg-darkbg/50 transition";
+                tr.innerHTML = '<td class="p-3"><div class="table-popover-wrapper" data-emote-key="" onmouseenter="adjustPopoverViewport(this)"><div data-4x-host></div><div class="h-10 w-14 shrink-0 flex items-center justify-center rounded-lg emote-img-box overflow-hidden"></div></div></td><td class="p-3 font-semibold text-white overflow-visible"><div class="flex items-center gap-1 min-w-0" data-row-name-cell></div></td><td data-row-usage class="p-3 font-bold text-purple-400 whitespace-nowrap"></td><td data-row-added class="p-3 text-xs text-gray-400 whitespace-nowrap"></td><td data-row-lastused class="p-3 text-xs text-gray-400 whitespace-nowrap"></td><td data-row-topusers-td class="p-3 text-xs text-gray-300 relative"></td><td data-row-link class="p-3 whitespace-nowrap"></td>';
+            }
+            const imgWrapper = tr.querySelector(".table-popover-wrapper:not([data-top-users-cell])");
+            if (imgWrapper) imgWrapper.setAttribute("data-emote-key", renderKey);
+            const host4x = tr.querySelector("[data-4x-host]");
+            if (host4x) {
+                if (e.img4xUrl) {
+                    let pop4x = host4x.querySelector(".table-img-popover");
+                    if (!pop4x) {
+                        host4x.innerHTML = '<div class="table-img-popover"><div class="table-popover-loader"><div class="table-popover-spinner"></div><span data-popover-name class="text-xs font-semibold text-white truncate max-w-full">' + escapeHtml(e.name) + '</span><span data-popover-status class="text-[11px] text-purple-300">Loading 4x preview...</span></div><img alt="' + escapeHtml(e.name) + '" decoding="async" class="relative z-[1] max-h-28 max-w-full object-contain"></div>';
+                        pop4x = host4x.querySelector(".table-img-popover");
+                    }
+                    const nameSpan = pop4x.querySelector("[data-popover-name]");
+                    if (nameSpan) nameSpan.textContent = e.name;
+                    const pImg = pop4x.querySelector("img");
+                    if (pImg) {
+                        pImg.alt = e.name;
+                        const active4x = pImg.currentSrc || pImg.getAttribute("src") || "";
+                        const data4x = pImg.getAttribute("data-src") || "";
+                        if (active4x === e.img4xUrl && pImg.complete && pImg.naturalWidth > 0) { loadedImageUrls.add(e.img4xUrl); pImg.removeAttribute("data-src"); setSkeletonLoadingState(pImg, false); }
+                        else if (isImageAlreadyCached(pImg, e.img4xUrl)) { loadedImageUrls.add(e.img4xUrl); pImg.removeAttribute("data-src"); if (pImg.getAttribute("src") !== e.img4xUrl) pImg.src = e.img4xUrl; setSkeletonLoadingState(pImg, false); }
+                        else if (active4x !== e.img4xUrl && data4x !== e.img4xUrl) { pImg.removeAttribute("src"); pImg.setAttribute("data-src", e.img4xUrl); resetSkeletonToIdle(pImg); }
+                    }
+                } else host4x.innerHTML = "";
+            }
+            syncEmoteImageSlot(tr.querySelector(".emote-img-box"), tableThumbUrl, e.name, "sync", idx);
+            const nameCell = tr.querySelector("[data-row-name-cell]");
+            if (nameCell) nameCell.innerHTML = '<span class="truncate" title="' + escapeHtml(e.name) + '">' + escapeHtml(e.name) + '</span>' + aliasHtml;
+            const usageTd = tr.querySelector("[data-row-usage]");
+            if (usageTd) usageTd.textContent = formatNumber(e.count);
+            const addedTd = tr.querySelector("[data-row-added]");
+            if (addedTd) addedTd.textContent = e.addedFormatted;
+            const lastUsedTd = tr.querySelector("[data-row-lastused]");
+            if (lastUsedTd) lastUsedTd.textContent = e.lastUsedFormatted;
+            const topUsersTd = tr.querySelector("[data-row-topusers-td]");
+            if (topUsersTd) topUsersTd.innerHTML = topUsersSummary ? '<div class="table-popover-wrapper relative block w-full min-w-0" data-top-users-cell="1" data-emote-key="' + escapeHtml(renderKey) + '" onmouseenter="adjustPopoverViewport(this)"><div data-top-users-host="1" class="truncate cursor-pointer text-purple-300 underline decoration-dashed decoration-gray-600 underline-offset-4 block w-full">' + escapeHtml(topUsersSummary) + '</div></div>' : "-";
+            const linkTd = tr.querySelector("[data-row-link]");
+            if (linkTd) linkTd.innerHTML = e.pageUrl !== "#" ? '<a href="' + e.pageUrl + '" target="_blank" class="text-xs text-purple-400 hover:underline">7TV Page</a>' : "-";
+            return tr;
+        }
         function renderEmotes() {
             const queryRaw = searchInput && searchInput.value ? searchInput.value.trim() : "";
             const sortMode = sortSelect ? sortSelect.value : "count-desc";
-            const urlMatch = queryRaw.match(/7tv\.app\/emotes\/([a-zA-Z0-9_-]+)/i);
-            const queryId = urlMatch ? urlMatch[1].toLowerCase() : queryRaw.toLowerCase();
-            const queryText = urlMatch ? "" : queryRaw.toLowerCase();
+            const parsedFilter = parse7tvFilterQuery(queryRaw);
             const idToAliasObjsMap = {};
             rawEmotesDataset.filter(Boolean).forEach(e => {
                 if (e.emoteId && e.name) {
@@ -938,9 +1134,9 @@
                 return { ...e, count: getComputedEmoteCount(e), computedTopUsers: getFilteredTopUsers(e), aliases, totalAliasUses, allAliasObjs: sortedAliasObjs };
             }).filter(e => {
                 if (!e) return false;
-                const nameMatches = queryText ? (e.name && e.name.toLowerCase().includes(queryText)) : false;
-                const idMatches = queryId && e.emoteId ? (e.emoteId.toLowerCase() === queryId || e.emoteId.toLowerCase().includes(queryId)) : false;
-                return !queryRaw || nameMatches || idMatches;
+                if (parsedFilter.mode === "none") return true;
+                if (parsedFilter.mode === "exact-id") return Boolean(e.emoteId && e.emoteId.toLowerCase() === parsedFilter.exactId);
+                return Boolean(e.name && e.name.toLowerCase().includes(parsedFilter.nameQuery));
             });
             filtered.sort((a, b) => {
                 if (sortMode === "count-desc") return b.count - a.count;
@@ -956,9 +1152,12 @@
             updateSummaryStats(rawEmotesDataset);
             renderedEmoteMap = new Map();
             filtered.forEach((e, idx) => { renderedEmoteMap.set(idx + "_" + (e.emoteId || "") + "_" + e.name, e); });
+            if (gridViewContainer) { Array.from(gridViewContainer.children).forEach(child => { const k = child.getAttribute("data-id-key"); if (k) releasePooledNode(gridCardPool, k, child); }); }
+            if (tableBody) { Array.from(tableBody.children).forEach(child => { const wrapper = child.querySelector(".table-popover-wrapper:not([data-top-users-cell])"); const k = wrapper ? wrapper.getAttribute("data-id-key") : ""; if (k) releasePooledNode(tableRowPool, k, child); }); }
             if (filtered.length === 0) {
-                if (gridViewContainer) gridViewContainer.classList.add("hidden");
+                if (gridViewContainer) { gridViewContainer.classList.add("hidden"); gridViewContainer.innerHTML = ""; }
                 if (tableViewContainer) tableViewContainer.classList.add("hidden");
+                if (tableBody) tableBody.innerHTML = "";
                 if (noResults) noResults.classList.remove("hidden");
                 enqueueImages([]);
                 return;
@@ -968,28 +1167,34 @@
                 if (gridViewContainer) gridViewContainer.classList.remove("hidden");
                 if (tableViewContainer) tableViewContainer.classList.add("hidden");
                 if (gridViewContainer) {
-                    gridViewContainer.innerHTML = filtered.map((e, idx) => {
-                        const key = idx + "_" + (e.emoteId || "") + "_" + e.name;
-                        const aliasTriggerHtml = (e.aliases && e.aliases.length > 0) ? "<div class=\"alias-popover-wrapper inline-block ml-1 align-middle\" data-emote-key=\"" + escapeHtml(key) + "\" onmouseenter=\"adjustPopoverViewport(this)\"><span class=\"cursor-pointer select-none\" title=\"Has " + e.aliases.length + " alias(es)\">" + aliasIconSvg + "</span></div>" : "";
-                        const skeletonHtml = "<div class=\"emote-skeleton-placeholder\"><span class=\"truncate\">" + escapeHtml(e.name) + "</span></div>";
-                        return "<div class=\"emote-card-wrapper\" data-emote-key=\"" + escapeHtml(key) + "\" onmouseenter=\"adjustPopoverViewport(this)\"><div class=\"bg-darkcard border border-darkborder hover:border-purple-500 rounded-xl p-3 flex flex-col items-center text-center transition group\"><div class=\"h-16 w-full flex items-center justify-center mb-2 rounded-lg emote-img-box overflow-hidden\">" + (e.imgUrl ? skeletonHtml + "<img data-src=\"" + e.imgUrl + "\" data-debug-idx=\"" + idx + "\" alt=\"" + escapeHtml(e.name) + "\" decoding=\"async\" class=\"relative z-[1] max-h-14 max-w-full object-contain\">" : "<span class=\"text-xs text-gray-600\">No Image</span>") + "</div><div class=\"flex items-center justify-center gap-1 max-w-full\"><a href=\"" + e.pageUrl + "\" target=\"_blank\" title=\"" + escapeHtml(e.name) + "\" class=\"font-semibold text-sm text-white hover:text-purple-400 truncate\">" + escapeHtml(e.name) + "</a>" + aliasTriggerHtml + "</div><span class=\"text-xs text-purple-400 font-bold mt-0.5\">" + formatNumber(e.count) + " uses</span><div class=\"text-[10px] text-gray-400 mt-1 space-y-0.5\"><div>Added: " + e.addedFormatted + "</div><div>Last Used: " + e.lastUsedFormatted + "</div></div></div></div>";
-                    }).join("");
-                    enqueueImages(gridViewContainer.querySelectorAll("img[data-src]"));
+                    const frag = document.createDocumentFragment();
+                    filtered.forEach((e, idx) => {
+                        const renderKey = idx + "_" + (e.emoteId || "") + "_" + e.name;
+                        const idKey = getEmoteIdentityKey(e);
+                        const card = createOrUpdateGridCard(e, renderKey, idKey, idx);
+                        card.setAttribute("data-id-key", idKey);
+                        frag.appendChild(card);
+                    });
+                    gridViewContainer.innerHTML = "";
+                    gridViewContainer.appendChild(frag);
+                    enqueueImages(gridViewContainer.querySelectorAll("img[data-src], img[src]"));
                 }
             } else {
                 if (gridViewContainer) gridViewContainer.classList.add("hidden");
                 if (tableViewContainer) tableViewContainer.classList.remove("hidden");
                 if (tableBody) {
-                    tableBody.innerHTML = filtered.map((e, idx) => {
-                        const key = idx + "_" + (e.emoteId || "") + "_" + e.name;
-                        const aliasTriggerHtml = (e.aliases && e.aliases.length > 0) ? "<div class=\"alias-popover-wrapper inline-block ml-1 align-middle shrink-0\" data-emote-key=\"" + escapeHtml(key) + "\" onmouseenter=\"adjustPopoverViewport(this)\"><span class=\"cursor-pointer select-none\" title=\"Has " + e.aliases.length + " alias(es)\">" + aliasIconSvg + "</span></div>" : "";
-                        const img4xPopoverHtml = e.img4xUrl ? "<div class=\"table-img-popover\"><div class=\"table-popover-loader\"><div class=\"table-popover-spinner\"></div><span class=\"text-xs font-semibold text-white truncate max-w-full\">" + escapeHtml(e.name) + "</span><span data-popover-status class=\"text-[11px] text-purple-300\">Loading 4x preview...</span></div><img data-src=\"" + e.img4xUrl + "\" alt=\"" + escapeHtml(e.name) + "\" decoding=\"async\" class=\"relative z-[1] max-h-28 max-w-full object-contain\"></div>" : "";
-                        const tableThumbUrl = e.img1xUrl || (e.emoteId ? "https://cdn.7tv.app/emote/" + e.emoteId + "/1x.webp" : "");
-                        const skeletonHtml = "<div class=\"emote-skeleton-placeholder\"><span class=\"truncate\">" + escapeHtml(e.name) + "</span></div>";
-                        const topUsersSummary = e.computedTopUsers.map(u => u.username + (u.isBot ? " [bot]" : "") + " (" + formatNumber(u.count) + ")").join(", ");
-                        return "<tr class=\"hover:bg-darkbg/50 transition\"><td class=\"p-3\"><div class=\"table-popover-wrapper\" data-emote-key=\"" + escapeHtml(key) + "\" onmouseenter=\"adjustPopoverViewport(this)\">" + img4xPopoverHtml + "<div class=\"h-10 w-14 shrink-0 flex items-center justify-center rounded-lg emote-img-box overflow-hidden\">" + (tableThumbUrl ? skeletonHtml + "<img data-src=\"" + tableThumbUrl + "\" data-debug-idx=\"" + idx + "\" alt=\"" + escapeHtml(e.name) + "\" decoding=\"sync\" class=\"relative z-[1] max-w-8 max-h-8 w-auto h-auto shrink-0 block object-contain cursor-pointer\">" : "-") + "</div></div></td><td class=\"p-3 font-semibold text-white overflow-visible\"><div class=\"flex items-center gap-1 min-w-0\"><span class=\"truncate\" title=\"" + escapeHtml(e.name) + "\">" + escapeHtml(e.name) + "</span>" + aliasTriggerHtml + "</div></td><td class=\"p-3 font-bold text-purple-400 whitespace-nowrap\">" + formatNumber(e.count) + "</td><td class=\"p-3 text-xs text-gray-400 whitespace-nowrap\">" + e.addedFormatted + "</td><td class=\"p-3 text-xs text-gray-400 whitespace-nowrap\">" + e.lastUsedFormatted + "</td><td class=\"p-3 text-xs text-gray-300 relative\">" + (topUsersSummary ? "<div class=\"table-popover-wrapper relative block w-full min-w-0\" data-top-users-cell=\"1\" data-emote-key=\"" + escapeHtml(key) + "\" onmouseenter=\"adjustPopoverViewport(this)\"><div data-top-users-host=\"1\" class=\"truncate cursor-pointer text-purple-300 underline decoration-dashed decoration-gray-600 underline-offset-4 block w-full\">" + escapeHtml(topUsersSummary) + "</div></div>" : "-") + "</td><td class=\"p-3 whitespace-nowrap\">" + (e.pageUrl !== "#" ? "<a href=\"" + e.pageUrl + "\" target=\"_blank\" class=\"text-xs text-purple-400 hover:underline\">7TV Page</a>" : "-") + "</td></tr>";
-                    }).join("");
-                    enqueueImages(tableViewContainer.querySelectorAll("img[data-src]"));
+                    const frag = document.createDocumentFragment();
+                    filtered.forEach((e, idx) => {
+                        const renderKey = idx + "_" + (e.emoteId || "") + "_" + e.name;
+                        const idKey = getEmoteIdentityKey(e);
+                        const row = createOrUpdateTableRow(e, renderKey, idKey, idx);
+                        const wrapper = row.querySelector(".table-popover-wrapper:not([data-top-users-cell])");
+                        if (wrapper) wrapper.setAttribute("data-id-key", idKey);
+                        frag.appendChild(row);
+                    });
+                    tableBody.innerHTML = "";
+                    tableBody.appendChild(frag);
+                    enqueueImages(tableViewContainer.querySelectorAll("img[data-src], img[src]"));
                 }
             }
         }
@@ -999,8 +1204,8 @@
         [chkIncludeOffline, chkIncludeBots, chkIncludeDuplicates].forEach(chk => { if (chk) chk.addEventListener("change", renderEmotes); });
         if (searchInput) searchInput.addEventListener("input", renderEmotes);
         if (sortSelect) sortSelect.addEventListener("change", renderEmotes);
-        if (viewGridBtn) { viewGridBtn.addEventListener("click", () => { cancelAllInFlightRequests(); currentView = "grid"; viewGridBtn.classList.replace("text-gray-400", "text-white"); viewGridBtn.classList.add("bg-purple-600"); if (viewTableBtn) { viewTableBtn.classList.replace("text-white", "text-gray-400"); viewTableBtn.classList.remove("bg-purple-600"); } renderEmotes(); }); }
-        if (viewTableBtn) { viewTableBtn.addEventListener("click", () => { cancelAllInFlightRequests(); currentView = "table"; viewTableBtn.classList.replace("text-gray-400", "text-white"); viewTableBtn.classList.add("bg-purple-600"); if (viewGridBtn) { viewGridBtn.classList.replace("text-white", "text-gray-400"); viewGridBtn.classList.remove("bg-purple-600"); } renderEmotes(); }); }
+        if (viewGridBtn) { viewGridBtn.addEventListener("click", () => { if (currentView === "grid") return; cancelOffscreenInFlightImages(); currentView = "grid"; viewGridBtn.classList.replace("text-gray-400", "text-white"); viewGridBtn.classList.add("bg-purple-600"); if (viewTableBtn) { viewTableBtn.classList.replace("text-white", "text-gray-400"); viewTableBtn.classList.remove("bg-purple-600"); } renderEmotes(); }); }
+        if (viewTableBtn) { viewTableBtn.addEventListener("click", () => { if (currentView === "table") return; cancelOffscreenInFlightImages(); currentView = "table"; viewTableBtn.classList.replace("text-gray-400", "text-white"); viewTableBtn.classList.add("bg-purple-600"); if (viewGridBtn) { viewGridBtn.classList.replace("text-white", "text-gray-400"); viewGridBtn.classList.remove("bg-purple-600"); } renderEmotes(); }); }
         document.addEventListener("DOMContentLoaded", () => { renderEmotes(); if (DEBUG_OVERLAY_ENABLED) { updateDebugOverlay(); syncDebugGridScrollWithPage(true); } });
     </script>
 </body>
